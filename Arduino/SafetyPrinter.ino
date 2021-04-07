@@ -63,8 +63,8 @@ typedef struct
 tSensor sensors [] =
 {
    
-   "Fire 1",9,250,true,false,false,
-   "Fire 2",8,250,true,false,false,
+   "Flame 1",9,250,true,false,false,
+   "Flame 2",8,250,true,false,false,
    "Emergency Button",5,250,true,false,false,
    "Smoke",7,250,true,false,false,
 };
