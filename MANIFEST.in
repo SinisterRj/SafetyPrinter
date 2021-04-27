@@ -1,0 +1,4 @@
+include README.md
+recursive-include octoprint_SafetyPrinter/templates *
+recursive-include octoprint_SafetyPrinter/translations *
+recursive-include octoprint_SafetyPrinter/static *
