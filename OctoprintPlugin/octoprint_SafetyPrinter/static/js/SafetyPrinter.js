@@ -27,9 +27,11 @@ $(function() {
         self.interlockColor = ko.observable();
         self.tripBtnVisible = ko.observable();
 
-        self.connection = ko.observable();
-        self.connectionColor = ko.observable();
-        self.notConnected = ko.observable();
+        self.connection = ko.observable("offline");
+        self.connectionColor = ko.observable("red");
+        self.notConnected = ko.observable(true);
+
+        self.navbarcolor = ko.observable("black");
 
         self.spSensors = ko.observableArray([
            new spSensorsType(false,"","offline","gray",0,0,0),
@@ -108,10 +110,12 @@ $(function() {
                     self.interlock("Normal");
                     self.interlockColor("black");
                     self.tripBtnVisible(false)
+                    self.navbarcolor("green");
                 } else {
                     self.interlock("TRIP");
                     self.interlockColor("red");
                     self.tripBtnVisible(true)
+                    self.navbarcolor("red");
                 }
                 
             }
@@ -124,6 +128,7 @@ $(function() {
                     self.connection("offline");
                     self.connectionColor("red");
                     self.notConnected(true);
+                    self.navbarcolor("black");
                     self.spSensors = [];
                 }
             }
@@ -139,6 +144,6 @@ $(function() {
         // ViewModels your plugin depends on, e.g. loginStateViewModel, settingsViewModel, ...
         // dependencies: ["settingsViewModel"],
         // Elements to bind to, e.g. #settings_plugin_SafetyPrinter, #tab_plugin_SafetyPrinter, ...
-        elements: ["#sidebar_plugin_SafetyPrinter"] //"#settings_plugin_SafetyPrinter"
+        elements: ["#navbar_plugin_SafetyPrinter","#sidebar_plugin_SafetyPrinter"] //"#settings_plugin_SafetyPrinter"
     });
 });

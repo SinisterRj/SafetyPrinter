@@ -7,10 +7,20 @@ import serial
 import serial.tools.list_ports
 import time
 import termios
+#import numpy as np  #precisa instalar o numpy (usar array com indice: sudo apt-get install python3-numpy)
 
 class Connection():
     def __init__(self, plugin):
-        self.sensorIndex = []
+        '''
+        self.sensorIndex = np.array([0,1,2,3,4,5,6,7])
+        self.sensorLabel = np.array(["Sensor1","Sensor2","Sensor3","Sensor4","Sensor5","Sensor6","Sensor7","Sensor8"])
+        self.sensorEnabled = ["0","0","0","0","0","0","0","0"]
+        self.sensorActive = ["0","0","0","0","0","0","0","0"]
+        self.sensorNewAlarm = ["0","0","0","0","0","0","0","0"]
+        self.sensorActualValue = ["0","0","0","0","0","0","0","0"]
+        self.sensorType = ["0","0","0","0","0","0","0","0"]
+        '''
+        #self.sensorIndex = []
         self.sensorLabel = []
         self.sensorEnabled = []
         self.sensorActive = []
@@ -50,29 +60,36 @@ class Connection():
                             self.serialConn = serial.Serial(port, 115200, timeout=0.5)
                             self._connected = True
                         except serial.SerialException:
-                            self.update_ui_error("Connection failed!")
+                            self._logger.error("Connection failed!") #self.update_ui_error("Connection failed!")
+                            self.update_connection_status()
             if not self._connected:
-                self.update_ui_error("Couldn't connect on any port.")
+                self._logger.error("Couldn't connect on any port.") #self.update_ui_error("Couldn't connect on any port.")
+                self.update_connection_status()
             else:
                 time.sleep(2.00) # wait for arduino boot
                 self.data = self.serialConn.readline()
                 self._logger.info("Safety Printer MCU connected! %s" % self.data)
+                self.update_connection_status()
         else:
-            msg = "NO SERIAL PORTS FOUND!"
-            self.update_ui_error(msg)
-
+            #msg = "NO SERIAL PORTS FOUND!"
+            #self.update_ui_error(msg)
+            self._logger.error("NO SERIAL PORTS FOUND!")
+            self.update_connection_status()
+            
     def closeConnection(self):
         if self._connected:
             self.serialConn.close()
             self.serialConn.__del__()
             self._connected = False
             self._logger.info("Safety Printer MCU connection closed.")
+            self.update_connection_status()
         else :
             self._logger.info("Safety Printer MCU not connected.")
 
     def update_ui_status(self):
         if self._connected:
-            self._plugin_manager.send_plugin_message(self._identifier, {"type": "connectionUpdate", "connectionStatus": True})
+            #self._plugin_manager.send_plugin_message(self._identifier, {"type": "connectionUpdate", "connectionStatus": True})
+            self.update_connection_status()
             if (len(self.sensorLabel) == 0):
                 self.update_ui_labels()
             responseStr = self.send_command("<R1>") 
@@ -89,7 +106,7 @@ class Connection():
             for x in range(totalSensors):
                 vpos1 = responseStr.find('#',vpos1)
                 vpos2 = responseStr.find(',',vpos1)
-                self.sensorIndex[x] = responseStr[vpos1:vpos2]
+                index = int(responseStr[vpos1+1:vpos2])
                 vpos1 = vpos2 + 1
                 vpos2 = responseStr.find(',',vpos1)
                 self.sensorEnabled[x] = responseStr[vpos1:vpos2]
@@ -107,7 +124,8 @@ class Connection():
                 #self._logger.info("Index: " + str(x) + " Label:" + str(self.sensorLabel[x]) + " Enabled:" + str(self.sensorEnabled[x]) + " Active:" + str(self.sensorActive[x]) + " NewAlarm:" + str(self.sensorNewAlarm[x]) +  " ActualValue:" + str(self.sensorActualValue[x]))
                 self._plugin_manager.send_plugin_message(self._identifier, {"type": "statusUpdate", "sensorIndex": x, "sensorLabel": self.sensorLabel[x], "sensorEnabled": self.sensorEnabled[x], "sensorActive": self.sensorActive[x], "sensorNewAlarm": self.sensorNewAlarm[x], "sensorActualValue": self.sensorActualValue[x], "sensorType": self.sensorType[x]})
         else :
-            self._plugin_manager.send_plugin_message(self._identifier, {"type": "connectionUpdate", "connectionStatus": False})    
+            #self._plugin_manager.send_plugin_message(self._identifier, {"type": "connectionUpdate", "connectionStatus": False})    
+            self.update_connection_status()
 
     def update_ui_labels(self):
 
@@ -122,7 +140,8 @@ class Connection():
         for x in range(self.totalSensorsInitial):
             vpos1 = responseStr.find('#',vpos1)
             vpos2 = responseStr.find(',',vpos1)
-            self.sensorIndex.append(responseStr[vpos1:vpos2])
+            index = int(responseStr[vpos1+1:vpos2])
+            #self._logger.info("indice :" + str(index) + str(self.sensorIndex[index]))
             vpos1 = vpos2 + 1
             vpos2 = responseStr.find(',',vpos1)
             self.sensorLabel.append(responseStr[vpos1:vpos2])
@@ -136,12 +155,16 @@ class Connection():
             self.sensorNewAlarm.append("2")
             self.sensorActualValue.append("")
 
+    def update_connection_status(self):
+        self._plugin_manager.send_plugin_message(self._identifier, {"type": "connectionUpdate", "connectionStatus": self._connected})    
+
+    '''
     def update_ui_prompt(self, prompt):
         self._plugin_manager.send_plugin_message(self._identifier, {"type": "prompt", "data": prompt})
 
     def update_ui_error(self, error):
         self._plugin_manager.send_plugin_message(self._identifier, {"type": "error", "data": error})
-
+    '''
     def send_command(self, command):
 
         if self.is_connected():
@@ -184,7 +207,7 @@ class Connection():
                 baselist.append(port.device)
 
         baselist = baselist + glob.glob('/dev/serial/by-id/*FTDI*') + glob.glob('/dev/*usbserial*') + glob.glob(
-            '/dev/*usbmodem*') + glob.glob('/dev/serial/by-id/*USB_Serial*') + glob.glob('/dev/serial/by-id/usb-Arduino*')
+            '/dev/*usbmodem*') + glob.glob('/dev/serial/by-id/*USB_Serial*') + glob.glob('/dev/serial/by-id/usb-*')
         baselist = self.getRealPaths(baselist)
         # get unique values only
         baselist = list(set(baselist))

@@ -59,10 +59,8 @@ class SafetyPrinterPlugin(
         return [
         #dict(type="settings", 
         #    custom_bindings=False),
-        dict(type="sidebar",
-            name="Safety Printer",
-            custom_bindings=False,
-            icon="power-off"),
+        dict(type="navbar", custom_bindings=True),
+        dict(type="sidebar", name="Safety Printer", custom_bindings=False, icon="power-off"),
         ]
 
     def get_assets(self):
