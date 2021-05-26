@@ -15,12 +15,15 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  * 
- * Version: 0.2
- * 04/21/2021
+ * Version: 0.2.1
+ * 05/26/2021
  * Changes: 
  * 1) Include analog type of sensor to allow Hotend temperature measurement.
- * 2) Save on EEPROM sensors Enabled status
+ * 2) included command <c5> to save on EEPROM sensors Enabled status and alarm set points
  * 3) 2 new serial commands: Remote shutdown and enable/disable sensors 
+ * 4) Now it indicates Alarm even if the sensor is disabled (but not starts de trip)
+ * 5) Included command <r4> to return firmware version and release date
+ * 
  */
 
  //*********************** A fazer: incluir os status de enabled na eeprom: Tá dando um erro bizarro que o arduino para de entender os caracteres que eu mando assim que eu gravo alguma coisa na eeprom
@@ -72,9 +75,9 @@
 #define Sensor4Pin             7
 #define Sensor4Type            DigitalSensor
 #define Sensor4Timer           250
-#define Sensor4AlarmSP          0
+#define Sensor4AlarmSP         0
 
-#define Sensor5Label           "HotEnd Temperature"
+#define Sensor5Label           "HotEnd Temp."
 #define Sensor5Pin             7
 #define Sensor5AuxPin          2  // Power pin for NTCs Thermistors
 #define Sensor5Type            NTCSensor
@@ -190,20 +193,23 @@ typedef struct
   int alarmSP;
   bool enabled;
   bool active;
-  bool newAlarm;
   int actualValue;
+  bool spare1;
+  bool spare2;
+  int spare3;
+  int spare4; 
 } tSensor;
 
 
 /* ****************************************************************************
  Declare all sensors using the above template
- "label",pin number,delay,enabled(always true),alarmStatus(always false),newAlarm(always false)
+ "label",pin number,delay,enabled(always true),alarmStatus(always false),spare1,spare2,spare3,spare4
 
  Label: the name of the sensor, that will help you to intentify it;
  Pin number: the pin wher it is connected;
  Delay: The timer delay to start the interlock from this sensor. If two or more sensors are active, the delay is bypassed; 
  Normal Condition: The variable status during normal operation. For analog varaibles, use the greater normal value (i.e. 279 if you want to trip with 280)
- enabled, alarmStatus and newAlarm: Internal use.
+ enabled, alarmStatus: Internal use.
 
 */
 tSensor sensors [] =
@@ -215,7 +221,7 @@ tSensor sensors [] =
    #else 
       -1, 
    #endif
-   Sensor1Type,Sensor1Timer,Sensor1AlarmSP,true,false,false,0,
+   Sensor1Type,Sensor1Timer,Sensor1AlarmSP,true,false,0,false,false,0,0,
 #endif
 #ifdef Sensor2Pin
    Sensor2Label,Sensor2Pin,
@@ -224,7 +230,7 @@ tSensor sensors [] =
    #else 
       -1, 
    #endif
-   Sensor2Type,Sensor2Timer,Sensor2AlarmSP,true,false,false,0,
+   Sensor2Type,Sensor2Timer,Sensor2AlarmSP,true,false,0,false,false,0,0,
 #endif
 #ifdef Sensor3Pin
    Sensor3Label,Sensor3Pin,
@@ -233,7 +239,7 @@ tSensor sensors [] =
    #else 
       -1, 
    #endif
-   Sensor3Type,Sensor3Timer,Sensor3AlarmSP,true,false,false,0,
+   Sensor3Type,Sensor3Timer,Sensor3AlarmSP,true,false,0,false,false,0,0,
 #endif
 #ifdef Sensor4Pin
    Sensor4Label,Sensor4Pin,
@@ -242,7 +248,7 @@ tSensor sensors [] =
    #else 
       -1, 
    #endif
-   Sensor4Type,Sensor4Timer,Sensor4AlarmSP,true,false,false,0,
+   Sensor4Type,Sensor4Timer,Sensor4AlarmSP,true,false,0,false,false,0,0,
 #endif
 #ifdef Sensor5Pin
    Sensor5Label,Sensor5Pin,
@@ -251,7 +257,7 @@ tSensor sensors [] =
    #else 
       -1, 
    #endif   
-   Sensor5Type,Sensor5Timer,Sensor5AlarmSP,true,false,false,0,
+   Sensor5Type,Sensor5Timer,Sensor5AlarmSP,true,false,0,false,false,0,0,
 #endif
 #ifdef Sensor6Pin
    Sensor6Label,Sensor6Pin,
@@ -260,7 +266,7 @@ tSensor sensors [] =
    #else 
       -1, 
    #endif   
-   Sensor6Type,Sensor6Timer,Sensor6AlarmSP,true,false,false,0,
+   Sensor6Type,Sensor6Timer,Sensor6AlarmSP,true,false,0,false,false,0,0,
 #endif
 #ifdef Sensor7Pin
    Sensor7Label,Sensor7Pin,
@@ -269,7 +275,7 @@ tSensor sensors [] =
    #else 
       -1, 
    #endif   
-   Sensor7Type,Sensor7Timer,Sensor7AlarmSP,true,false,false,0,
+   Sensor7Type,Sensor7Timer,Sensor7AlarmSP,true,false,0,false,false,0,0,
 #endif
 #ifdef Sensor8Pin
    Sensor8Label,Sensor8Pin,
@@ -278,7 +284,7 @@ tSensor sensors [] =
    #else 
       -1, 
    #endif   
-   Sensor8Type,Sensor8Timer,Sensor8AlarmSP,true,false,false,0,
+   Sensor8Type,Sensor8Timer,Sensor8AlarmSP,true,false,0,false,false,0,0,
 #endif
 };
 
@@ -320,6 +326,7 @@ void setup() {
   pinMode(ResetButtonPin, INPUT_PULLUP);
 
   pinMode(InterlockRelayPin, OUTPUT);
+  digitalWrite(InterlockRelayPin, LOW);
   
   numOfSensors = (sizeof(sensors) / sizeof(sensors[0]));
   //Set sensor input pins
@@ -385,10 +392,30 @@ void loop() {
 }
 
 void readEEPROMData() {
-  // Check EEPROM for the last interlock state
-
+  /* Check EEPROM for the last interlock state
+  * EEPROM MAP:
+  * [0] : EEPROM flag to check if its written or not;
+  * [1] : Interlock Status;
+  * [2] : Sensors Enabled status;
+  * [3] : Sensor 0 alarm set point (byte 1)
+  * [4] : Sensor 0 alarm set point (byte 2)
+  * [3] : Sensor 1 alarm set point (byte 1)
+  * [4] : Sensor 1 alarm set point (byte 2)
+  * [5] : Sensor 2 alarm set point (byte 1)
+  * [6] : Sensor 2 alarm set point (byte 2)
+  * [7] : Sensor 3 alarm set point (byte 1)
+  * [8] : Sensor 3 alarm set point (byte 2)
+  * [9] : Sensor 4 alarm set point (byte 1)
+  * [10] : Sensor 4 alarm set point (byte 2)
+  * [11] : Sensor 5 alarm set point (byte 1)
+  * [12] : Sensor 5 alarm set point (byte 2)  
+  * [13] : Sensor 6 alarm set point (byte 1)
+  * [14] : Sensor 6 alarm set point (byte 2)
+  * [15] : Sensor 7 alarm set point (byte 1)
+  * [16] : Sensor 7 alarm set point (byte 2)  
+  */
   int firstTimeRun = EEPROM.read(0);
-  if (firstTimeRun == 0) { // Verifica se há alguma coisa no endereço 0 da EEPROM (o padrão é 255 quando não gravado)
+  if (firstTimeRun == 0) { // Verify if there is something on EEPROM address 0 (the standard is 255 when its blank)
      interlockStatus = EEPROM.read(1);
      if (interlockStatus) {
         interlock(false,0);
@@ -404,21 +431,40 @@ void readEEPROMData() {
       EEPROMSensorsEnabled = EEPROMSensorsEnabled / 2; 
 
     }
+    for(int i = 0; i < numOfSensors; i++){
+        byte byte1 = EEPROM.read(3 + (i*2));
+        byte byte2 = EEPROM.read(4 + (i*2));
+        sensors[i].alarmSP = (byte1 << 8) + byte2;
+    }
     
   } else {
     //Write EEPROM for the first time
-    EEPROM.update(0,0); //controll EEprom flag
+    EEPROM.update(0,0); // Controll EEprom flag
     EEPROM.update(1,0); // Interlock status
+  
+    byte EEPROMSensorsEnabled = 0; 
+    for(int i = 0; i < numOfSensors; i++){
+       EEPROMSensorsEnabled += round(sensors[i].enabled * pow(2,7-i));
+    }
+    EEPROM.update(2,EEPROMSensorsEnabled);
+
+    for(int i = 0; i < numOfSensors; i++){
+       EEPROM.update(3 + (i*2), sensors[i].alarmSP >> 8);
+       EEPROM.update(4 + (i*2), sensors[i].alarmSP & 0xFF);
+    }    
   }  
 }
 
 //*************************   Serial communication module  *************************
 #ifdef SerialComm
 void recvCommandWithStartEndMarkers() {  
-  // Receive commands from PC
-  // This function receive serial ASCII data and splits it into a "command" and up to 4 "arguments",
-  // The sintax must be:
-  // <COMAND ARGUMENT1 ARGUMENT2 ARGUMENT 3 ARGUMENT4> 
+  /* Receive commands from PC
+  * 
+  * This function receive serial ASCII data and splits it into a "command" and up to 4 "arguments",
+  * The sintax must be:
+  * <COMAND ARGUMENT1 ARGUMENT2 ARGUMENT3 ARGUMENT4> 
+  * 
+  */
   #define STARTMARKER '<'
   #define ENDMARKER '>'
   #define NUMCHARS 38
@@ -497,13 +543,17 @@ void recvCommandWithStartEndMarkers() {
       } else if (strcmp(command,"c3") == 0 or strcmp(command,"C3") == 0) {
         Cmd_c3(argument1,argument2);   
       } else if (strcmp(command,"c4") == 0 or strcmp(command,"C4") == 0) {
-        Cmd_c4(argument1,argument2);            
+        Cmd_c4(argument1,argument2);        
+      } else if (strcmp(command,"c5") == 0 or strcmp(command,"C5") == 0) {
+        Cmd_c5();      
       } else if (strcmp(command,"r1") == 0 or strcmp(command,"R1") == 0) {
         Cmd_r1();
       } else if (strcmp(command,"r2") == 0 or strcmp(command,"R2") == 0) {
         Cmd_r2();
       } else if (strcmp(command,"r3") == 0 or strcmp(command,"R3") == 0) {
         Cmd_r3();
+      } else if (strcmp(command,"r4") == 0 or strcmp(command,"R4") == 0) {
+        Cmd_r4();
       } else {
         ReturnError(0,command);
       }
@@ -528,14 +578,14 @@ void ReturnError(int type, char text[8]){
 void Cmd_c1()
 {
    // Serial command to Reset trip condition
-   Serial.println(F("C1:Resseting interlocks"));
+   Serial.println(F("C1: Resseting interlocks."));
    resetInterlock(false);
 }
 
 void Cmd_c2()
 {
    // Serial command to Trip
-   Serial.println(F("C2:External interlock received"));
+   Serial.println(F("C2: External interlock received."));
    interlock(false,0);
 }
 
@@ -547,24 +597,24 @@ void Cmd_c3(char argument1[8], char argument2[8])
           for (int i =0; i < numOfSensors; i++) { 
              sensors[i].enabled = 1;
           }   
-          Serial.println(F("C3:ALL sensors are ENABLED.")); 
+          Serial.println(F("C3: ALL sensors are ENABLED.")); 
        } else if (strcmp(argument2, "off") == 0) {
           for (int i =0; i < numOfSensors; i++) { 
              sensors[i].enabled = 0;
              sensors[i].active = 0;
           } 
-          Serial.println(F("C3:ALL sensors are DISABLED."));  
+          Serial.println(F("C3: ALL sensors are DISABLED."));  
        }       
    } else {
      int index = atoi(argument1);
      if (index >= 0 and index < numOfSensors) {
        if (strcmp(argument2, "on") == 0) {
           sensors[index].enabled = 1;   
-          Serial.println("C3:Sensor: " + sensors[index].label + " is ENABLED."); 
+          Serial.println("C3: Sensor: " + sensors[index].label + " is ENABLED."); 
        } else if (strcmp(argument2, "off") == 0) {
           sensors[index].enabled = 0;
           sensors[index].active = 0;
-          Serial.println("C3:Sensor: " + sensors[index].label + " is DISABLED.");  
+          Serial.println("C3: Sensor: " + sensors[index].label + " is DISABLED.");  
        } else {
           ReturnError(2,argument2);
        }       
@@ -572,13 +622,6 @@ void Cmd_c3(char argument1[8], char argument2[8])
         ReturnError(1,argument1);
      }
    }
-   
-   //update EEPROM sensors enabled status
-   byte EEPROMSensorsEnabled = 0; 
-   for(int i = 0; i < numOfSensors; i++){
-      EEPROMSensorsEnabled += round(sensors[i].enabled * pow(2,7-i));
-   }
-   EEPROM.update(2,EEPROMSensorsEnabled);
 }
 
 void Cmd_c4(char argument1[8], char argument2[8])
@@ -590,26 +633,33 @@ void Cmd_c4(char argument1[8], char argument2[8])
     int oldSP = sensors[index].alarmSP;
     if (sensors[index].type == DigitalSensor and (newSP == 0 or newSP == 1)){
         sensors[index].alarmSP = newSP;   
-        Serial.println("C4:Sensor: " + sensors[index].label + " set point changed from:" + String(oldSP) + " to: " + String(sensors[index].alarmSP)); 
+        Serial.println("C4: Sensor: " + sensors[index].label + " set point changed from:" + String(oldSP) + " to: " + String(sensors[index].alarmSP) + "."); 
      } else if (sensors[index].type == NTCSensor) { 
         sensors[index].alarmSP = newSP; 
-        Serial.println("C4:Sensor: " + sensors[index].label + " set point changed from:" + String(oldSP) + " to: " + String(sensors[index].alarmSP));  
+        Serial.println("C4: Sensor: " + sensors[index].label + " set point changed from:" + String(oldSP) + " to: " + String(sensors[index].alarmSP) + ".");  
      } else {
         ReturnError(2,argument2);
      }       
    } else {
       ReturnError(1,argument1);
    }
-   
-   /*
-   //update EEPROM sensors enabled status
+}
+
+void Cmd_c5()
+{
+   // Update EEPROM sensors enabled status
    byte EEPROMSensorsEnabled = 0; 
-    
    for(int i = 0; i < numOfSensors; i++){
-      EEPROMSensorsEnabled += sensors[i].enabled * pow(2,i);
+      EEPROMSensorsEnabled += round(sensors[i].enabled * pow(2,7-i));
    }
    EEPROM.update(2,EEPROMSensorsEnabled);
-   */
+   
+   // Update EEPROM sensors alarm set point
+   for(int i = 0; i < numOfSensors; i++){
+      EEPROM.update(3 + (i*2), sensors[i].alarmSP >> 8);
+      EEPROM.update(4 + (i*2), sensors[i].alarmSP & 0xFF);
+   }
+   Serial.println("C5: EEPROM updated.");   
 }
 
 void Cmd_r1()
@@ -617,7 +667,7 @@ void Cmd_r1()
    // Serial command to Return Input Status for Octoprint plugin
    Serial.print("R1:"+String(interlockStatus));
    for (int i =0; i < numOfSensors; i++) { 
-      Serial.print("#" + String(i+1) + "," + String(sensors[i].enabled) + "," +  String(sensors[i].active) + "," +  String(sensors[i].newAlarm) + "," + String(sensors[i].actualValue) + ",");  
+      Serial.print("#" + String(i) + "," + String(sensors[i].enabled) + "," +  String(sensors[i].active) + "," + String(sensors[i].actualValue) + "," + String(sensors[i].alarmSP) + "," + String(sensors[i].spare1) + "," + String(sensors[i].spare3) + ",");  
    }
    Serial.println();
 }
@@ -625,9 +675,9 @@ void Cmd_r1()
 void Cmd_r2()
 {
    // Serial command to Return Input Labels for Octoprint plugin
-   Serial.print("R2:");
+   Serial.print(F("R2:"));
    for (int i =0; i < numOfSensors; i++) { 
-      Serial.print("#" + String(i+1) + "," + sensors[i].label + "," + String(sensors[i].type) + ",");  
+      Serial.print("#" + String(i) + "," + sensors[i].label + "," + String(sensors[i].type) + "," + String(sensors[i].spare2) + "," + String(sensors[i].spare4) + ",");  
    }
    Serial.println();
 }
@@ -635,36 +685,55 @@ void Cmd_r2()
 void Cmd_r3()
 {
    // Serial command to Return Input Status more suitable for humans.
-   Serial.println("R3: Safety Printer Status");
-   Serial.println("-----------------------------------------------------------------------------------------------------------");
-   Serial.print("** Interlock Status ** :");
-   if (interlockStatus) Serial.println(" ********  Shudown (TRIP) ********"); 
-   else Serial.println(" Normal Operation"); 
-   Serial.println("-----------------------------------------------------------------------------------------------------------");
-   Serial.println("#:| Label:                                  | Enabled: | Active: | New Alarm: | Actual Value: | Set Point: |");
+   Serial.println(F("R3: Safety Printer Status"));
+   Serial.println(F("---------------------------------------------------------------------------"));
+   Serial.print(F("** Interlock Status ** :"));
+   if (interlockStatus) Serial.println(F(" ********  Shudown (TRIP) ********")); 
+   else Serial.println(F(" Normal Operation")); 
+   Serial.println(F("---------------------------------------------------------------------------"));
+   Serial.println(F("#:| Label                                   | Enab.| Act.| Value | S.Point |"));
    for (int i = 0; i < numOfSensors; i++) { 
       Serial.print(String(i) + ".|." + sensors[i].label);
       int dots = 40-sensors[i].label.length();
       for (int j = 0; j< dots ;j++)
       {
-         Serial.print(".");
+         Serial.print(F("."));
       }
-      Serial.print("|." + String(sensors[i].enabled) + "........|." +  String(sensors[i].active) + ".......|." +  String(sensors[i].newAlarm) + "..........|." + String(sensors[i].actualValue));
-      dots = 14-String(sensors[i].actualValue).length();
+      Serial.print(F("|."));
+      if (sensors[i].enabled) {
+         Serial.print(F("Yes"));
+      } else {
+         Serial.print(F("No."));
+      }
+      Serial.print(F("..|."));
+      if (sensors[i].active) {
+         Serial.print(F("Yes"));
+      } else {
+         Serial.print(F("No."));
+      }
+      Serial.print(".|." + String(sensors[i].actualValue));
+      dots = 6-String(sensors[i].actualValue).length();
       for (int j = 0; j< dots;j++)
       {
          Serial.print(".");
       }
       Serial.print("|." + String(sensors[i].alarmSP));
-      dots = 11-String(sensors[i].alarmSP).length();
+      dots = 8-String(sensors[i].alarmSP).length();
       for (int j = 0; j< dots;j++)
       {
          Serial.print(".");
       }
       Serial.println("|");
    }
-   Serial.println("-----------------------------------------------------------------------------------------------------------");
+   Serial.println("---------------------------------------------------------------------------");
 }
+
+void Cmd_r4()
+{
+   // Serial command to Return firmware version and release date
+   Serial.println("R4:" VERSION "," __DATE__); 
+}
+
 #endif
 //***************************************************************************************
 
@@ -672,22 +741,20 @@ void checkSensors() {
    // Check all inputs for new alamrs
    activeAlarmCount = 0;
    for (int i =0; i < numOfSensors; i++) { 
-      if (sensors[i].enabled) {       
-        if (sensors[i].type == DigitalSensor){
-          sensors[i].actualValue = digitalRead(sensors[i].pin);
-          if (sensors[i].actualValue == sensors[i].alarmSP) {
-             setAlarm(i);
-          } else {
-             sensors[i].active = false;
-          }
+      if (sensors[i].type == DigitalSensor){
+        sensors[i].actualValue = digitalRead(sensors[i].pin);
+        if (sensors[i].actualValue == sensors[i].alarmSP) {
+           setAlarm(i);
+        } else {
+           sensors[i].active = false;
         }
-        else if (sensors[i].type == NTCSensor) {
-          sensors[i].actualValue = read_temp(sensors[i].pin, sensors[i].auxPin);
-          if (sensors[i].actualValue >= sensors[i].alarmSP) {
-             setAlarm(i);
-          } else {
-             sensors[i].active = false;
-          }
+      }
+      else if (sensors[i].type == NTCSensor) {
+        sensors[i].actualValue = read_temp(sensors[i].pin, sensors[i].auxPin);
+        if (sensors[i].actualValue >= sensors[i].alarmSP) {
+           setAlarm(i);
+        } else {
+           sensors[i].active = false;
         }
       }
    }
@@ -709,15 +776,12 @@ void checkResetButton() {
 
 void setAlarm(int index) {
   // Turn an Alarm active, start timers and light Alarm LED [AlarmLedPin].
-  activeAlarmCount++;
-  interlock(true,sensors[index].timer);
-  if (!sensors[index].active) sensors[index].newAlarm = true;
+  if (sensors[index].enabled) {
+     activeAlarmCount++;
+     interlock(true,sensors[index].timer);
+  }
   sensors[index].active = true;
   digitalWrite(AlarmLedPin, HIGH); 
-  if (sensors[index].newAlarm) {
-     sensors[index].newAlarm = false;
-     alarmCounter++;
-  }
 }
 
 void startTimer(unsigned long *pStartMS, bool *timerStatus) {
