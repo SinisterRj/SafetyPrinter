@@ -1,19 +1,36 @@
+<script type="application/javascript">
+    function SafetyPrinterEBConfirmClick()
+    {
+        var result = window.confirm("Are you sure? This will STOP any printing and you will loose any running job.");
+        if (result) {
+            OctoPrint.simpleApiCommand("SafetyPrinter", "sendTrip");
+        }
+    }
+</script>
+
+<div id="SafetyPrinter">
 <table style="width:100%">
   <tr>
-    <td><p>Connection: <span data-bind="style: {color: connectionColor}"><strong data-bind="text: connection"></strong></span></p></td>
+    <td>Connection: <span data-bind="style: {color: connectionColor}"><strong data-bind="text: connection"></strong></span></td>
     <td style="text-align: right;"><span data-bind="visible: notConnected"><button data-bind="click: connectBtn">Connect</button></span></td>
   </tr>	
-  <tr>
-    <td><p data-bind="style: {color: interlockColor}">Status: <strong data-bind="text: interlock"></strong></p></td>
+  <tr data-bind="hidden: notConnected">
+    <td><span data-bind="style: {color: interlockColor}">Status: <strong data-bind="text: interlock"></strong></span></td>
     <td style="text-align: right;"><span data-bind="visible: tripBtnVisible"><button data-bind="click: tripResetBtn">Reset</button></span></td>
   </tr>
 </table>
-
+<span data-bind="hidden: notConnected">
+<hr>
+</span>
 <!-- ko foreach: spSensors -->
 <div data-bind="visible: visible">
-<p><span data-bind="text: label"></span> : <span data-bind="style: {color: color}"><strong data-bind="text: status"></strong></span></p>
+<span data-bind="text: label"></span> : 
+<span data-bind="style: {color: color}"><strong data-bind="text: status"></strong></span>
 </div>
 <!-- /ko -->
-
-<center>
-<button data-bind="click: emergencyStopBtn" class="btn btn-danger">Emergency STOP</button></center>
+</table>
+<span data-bind="hidden: notConnected">
+<hr>
+<center><button onclick='SafetyPrinterEBConfirmClick()' class="btn btn-danger">Emergency STOP</button></center>
+</span>
+</div>

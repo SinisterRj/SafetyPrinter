@@ -16,3 +16,24 @@
     color: darkred;
     border: none;
 }
+
+.SPTable {
+    width: 97%;
+}
+
+.SPTable-noborder {
+    width: 97%;
+    border-collapse: collapse;
+    border: 1px solid black;
+}
+
+.SPterminal {
+    width: 97%;
+    #SafetyPrinterTerminal {
+      min-height: 340px;
+      margin-bottom: 5px;
+    }
+
+    margin-bottom: 30px;
+}
+

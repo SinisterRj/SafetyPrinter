@@ -1,33 +1,66 @@
 <h3>Configuration for Safety Printer</h3>
+<h4>General info:</h3>
 <p>
-Plugin version:</br>
-Safety Printer Arduino firmware version:</br>
-Serial Port:</br>
+<table class="SPtable-noborder">
+<tr><td width="30%"> 
+Connection:</td><td><span data-bind="style: {color: connectionColor}"><strong data-bind="text: connection"></strong></span>
+</td><td><button data-bind="click: connectBtn, text: connectionCaption" class="btn"></button></td></tr>
+<tr><td width="30%">Actual Serial Port: </td><td><span data-bind="text: connectedPort"></span></td><td></td></tr>
+<tr><td width="30%">Default Serial Port:</td><td><select data-bind="options: availablePorts, optionsText: 'name', optionsValue: 'name', value: settingsViewModel.settings.plugins.SafetyPrinter.serialport"></select></td><td><span data-bind="text: teste"></span></td></tr>
+</table>
 </p>
-<table style="width:100%">
-  <th>
-    <td>Label:</td>
-    <td>Type:</td>
-    <td>Enable:</td>
-    <td>Active:</td>
-    <td>New Alarm:</td>
-    <td>Set Point:</td>
-    <td>Actual Value:</td>
-  </th>
-  <!-- ko foreach: spSensors -->
-  <div data-bind="visible: visible">
-  <tr>  
+<h4>Sensor data:</h3>
+<table class="table table-bordered table-hover SPTable">
+  <thead>
+  <tr>
+    <th style="width:40%">Label:</th>
+    <th style="width:19%">Type:</th>
+    <th style="width:8%">Enable:</th>
+    <th style="width:8%">Status:</th>
+    <!--th>New Alarm:</th-->
+    <th style="width:15%">Set Point:</th>
+    <th style="width:10%">Actual Value:</th>
+  </tr>
+  </thead>
+  <tbody data-bind="foreach: spSensors">
+  <tr data-bind="visible: visible">  
     <td><span data-bind="text: label"></span></td>
-    <td>Type:</td>
-    <td><span data-bind="text: enabled"></span></td>
+    <td><span data-bind="text: type"></span></td>
+    <td><input type="checkbox" value="EnabledCb" data-bind="checked: enabled(), click: $parent.toggleEnabledBtn, enable:expertMode()"/></td>
     <td><span data-bind="text: active"></span></td>
-    <td><span data-bind="text: newAlarm"></span></td>	
-    <td>Set Point:</td>
-    <td><span data-bind="text: actualValue"></span></td>
-   </tr>
-   </div>
-<!-- /ko -->
+    <!--td><span data-bind="text: newalarm"></span></td-->	
+    <td>
+      <select data-bind="options: availableSP(), value: SP, click: $parent.changeSPSel, enable:expertMode()" style="width:100%"></select>
+    </td>
+    <td><span data-bind="text: actualvalue"></span></td>    
+  </tr>
+</tbody>
+<tr><td colspan="6" style="text-align: right"><button data-bind="click: saveEEPROMBtn, enable:expertMode()" class="btn btn-primary">Save to EEPROM</button></td></tr>
 </table>
 
 <h3>Advanced</h3>
+<p>  
+<input type="checkbox" data-bind="checked: expertMode"> <b>Expert mode</b>. This option allows you to enable or disable sensors, temporarily change their set points or send commands directly through the terminal. Use with caution and just for TEST only. Any wrong configuration can shutdown your printer or disable a safety function not allowing the safety printer to act when an incident is detected.</input>
+</p>
 <h4>Terminal</h4>
+<div class="SPterminal">
+    <pre id="SafetyPrinterTerminal" class="pre-scrollable pre-output" data-bind="foreach: terminalLines, event: { scroll: terminalScrollEvent }"><span data-bind="text: type() + ':' + line()"></span></pre>
+    <small id="terminal-autoscroll-panel" class="pull-left">
+        <button class="btn btn-mini terminal-autoscroll" data-bind="click: toggleAutoscroll, css: {active: autoscrollEnabled}">Autoscroll</button>        
+    </small>
+    <div>
+        <div class="input-block-level input-append">
+            <input type="text" id="SPterminal-command" data-bind="value: command, enable:expertMode()">
+            <a href="#" class="btn add-on" id="SPterminal-send" data-bind="click: sendCommand, enable:expertMode()">Send</a>
+        </div>
+    </div>
+</div>
+<script type="application/javascript">
+var input = document.getElementById("SPterminal-command");
+input.addEventListener("keyup", function(event) {
+    if (event.keyCode === 13) {
+        event.preventDefault();
+        document.getElementById("SPterminal-send").click();
+    }
+});
+</script>
