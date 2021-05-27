@@ -36,34 +36,31 @@ $(function() {
 
         self.settingsViewModel = parameters[0];
         
-        //settingsViewModel.settings.plugins.SafetyPrinter.serialport
-
+        // Sidebar variables
         self.interlock = ko.observable();
         self.interlockColor = ko.observable();
         self.tripBtnVisible = ko.observable();
 
+        // Settings variables
         self.autoscrollEnabled = ko.observable(true);
-
         self.expertMode = ko.observable(false);
+        self.availablePorts = ko.observableArray([new ItemViewModel("AUTO")]);
+        self.terminalLines = ko.observableArray();
+        self.countTerminalLines = 0;
+        self.command = ko.observable();
+        self.tabActive = false;
+        self.oldSP = ["0","0","0","0","0","0","0","0"];
 
+        // Navbar variables
+        self.navbarcolor = ko.observable("black");
+        self.navbartitle = ko.observable("Safety Printer: Offline");
+
+        // General variables
         self.connection = ko.observable("Offline");
         self.connectionColor = ko.observable("red");
         self.notConnected = ko.observable(true);
         self.connectedPort = ko.observable("None");
         self.connectionCaption = ko.observable("Connect");
-
-        self.navbarcolor = ko.observable("black");
-        self.navbartitle = ko.observable("Safety Printer: Offline");
-
-        self.availablePorts = ko.observableArray([new ItemViewModel("AUTO")]);
-
-        self.terminalLines = ko.observableArray();
-
-        self.teste = ko.observable("nao iniciada");
-
-        self.countTerminalLines = 0;
-
-        self.command = ko.observable();
 
         self.spSensors = ko.observableArray([
            new spSensorsType(false,"","offline","gray","0",false,"0","0","0",[],false),
@@ -74,39 +71,17 @@ $(function() {
            new spSensorsType(false,"","offline","gray","0",false,"0","0","0",[],false),
            new spSensorsType(false,"","offline","gray","0",false,"0","0","0",[],false),
            new spSensorsType(false,"","offline","gray","0",false,"0","0","0",[],false)
-        ]);       
-
-        self.onBeforeBinding = function() {
-        
-        
-            //self.settings = self.settingsViewModel.settings;
-            //self.ownSettings = self.settings.plugins.SafetyPrinter;
-            //self.serialport = self.ownSettings.serialport();
-            
-            self.serialport = self.settingsViewModel.settings.plugins.SafetyPrinter.serialport();
-
- 
-            //settingsViewModel.settings.plugins.SafetyPrinter.serialport
-        
-            console.log(self.serialport);
-            //self.teste(settingsViewModel.settings.plugins.SafetyPrinter.serialport());
-        }
+        ]); 
 
         self.onStartupComplete = function() {
             // Update serial ports info
             OctoPrint.simpleApiCommand("SafetyPrinter", "getPorts");
         };
 
-        self.toggleAutoscroll = function() {
-            self.autoscrollEnabled(!self.autoscrollEnabled());
-
-            if (self.autoscrollEnabled()) {
-                //self.updateOutput();
-                self.scrollToEnd();
-            }
-        };
+        // ************* Functions to autoscrool the terminal:
 
         self.terminalScrollEvent = _.throttle(function () {
+            // If user scrolls the terminal, it stops the autoscrolling
             var container = $("#SafetyPrinterTerminal");
             var pos = container.scrollTop();
             var scrollingUp =
@@ -119,12 +94,34 @@ $(function() {
                     self.autoscrollEnabled(false);
                 }
             }
-
             self.previousScroll = pos;
         }, 250);
 
-        self.stopAutoscroll = function() {
-            self.autoscrollEnabled(false);
+        self.gotoTerminalCommand = function () {
+            // skip if user highlights text.
+            var sel = getSelection().toString();
+            if (sel) {
+                self.autoscrollEnabled(false);
+                return;
+            }
+
+            $("#SPterminal-command").focus();
+        };
+
+        self.onAfterTabChange = function (current, previous) {
+            self.tabActive = current === "#term";
+            self.updateOutput();
+        };
+
+
+        self.updateOutput = function () {
+            if (
+                self.tabActive &&
+                OctoPrint.coreui.browserTabVisible &&
+                self.autoscrollEnabled()
+            ) {
+                self.scrollToEnd();
+            }
         };
 
         self.scrollToEnd = function () {
@@ -134,18 +131,24 @@ $(function() {
             }
         };
 
-        self.sendCommand = function() {
+        // ************* Functions for each button on Settings TAB:
+
+        self.toggleAutoscrollBtn = function() {
+            // Changes the setings terminal autoscroll to ON or OFF
+            self.autoscrollEnabled(!self.autoscrollEnabled());
+
+            if (self.autoscrollEnabled()) {
+                self.updateOutput();
+            }
+        };
+
+        self.sendCommandBtn = function() {
+            // Send generic user comands from command line to arduino
             OctoPrint.simpleApiCommand("SafetyPrinter", "sendCommand", {serialCommand: self.command()}); 
         }
 
-        self.tripResetBtn = function() {
-            OctoPrint.simpleApiCommand("SafetyPrinter", "resetTrip");
-        };
-
         self.toggleEnabledBtn = function(item) {
-            //var index = self.spSensors.indexOf(item);
-            console.log("Mudando enabled " + self.spSensors.indexOf(item));
-            //self.spSensors()[index].enabled = !self.spSensors()[index].enabled;
+            // Send a command to arduino to enable or disable any specific sensor
             if (self.spSensors()[self.spSensors.indexOf(item)].enabled()) {
                 OctoPrint.simpleApiCommand("SafetyPrinter", "toggleEnabled", {id: self.spSensors.indexOf(item), onoff: "off"});
             } else {
@@ -154,12 +157,29 @@ $(function() {
         };
 
         self.changeSPSel = function(item) {
-            //var index = self.spSensors.indexOf(item);
-            console.log("Mudando Set Point " + self.spSensors.indexOf(item));
-            OctoPrint.simpleApiCommand("SafetyPrinter", "changeSP", {id: self.spSensors.indexOf(item), newSP: self.spSensors()[self.spSensors.indexOf(item)].SP()});
+            // Send a command to arduino to change a specific sensor alarm set point
+            if (self.oldSP[self.spSensors.indexOf(item)] != self.spSensors()[self.spSensors.indexOf(item)].SP()) {
+                //Avoid to send the command if the user just clicks on the selector, but select the same SP.
+                OctoPrint.simpleApiCommand("SafetyPrinter", "changeSP", {id: self.spSensors.indexOf(item), newSP: self.spSensors()[self.spSensors.indexOf(item)].SP()});
+            }
         };
 
+        self.saveEEPROMBtn = function() {
+            // Send a command to arduino to write changes on "enable" and "set point" sensor properties on EEPROM
+            OctoPrint.simpleApiCommand("SafetyPrinter", "saveEEPROM");  
+        }
+
+        // ************* Functions for each button on Sidebar:
+
+        self.tripResetBtn = function() {
+            // Send a command to arduino to reset all trips
+            OctoPrint.simpleApiCommand("SafetyPrinter", "resetTrip");
+        };
+
+        // ************* Functions for general buttons:
+
         self.connectBtn = function() {
+            // Connects or disconnects to the Safety Printer Arduino
             if (self.notConnected()) {
                 self.connection("Connecting");
                 self.connectionColor("black");
@@ -174,9 +194,7 @@ $(function() {
 
         };
 
-        self.saveEEPROMBtn = function() {
-            OctoPrint.simpleApiCommand("SafetyPrinter", "saveEEPROM");  
-        }
+        // ************* Function to manage plug-in messages
 
         self.onDataUpdaterPluginMessage = function(plugin, data) {
           
@@ -184,8 +202,9 @@ $(function() {
                 return;
             }
             //console.log(data.type);
-            if ((data.type == "statusUpdate") && (self.notConnected() == false)) {
 
+            if ((data.type == "statusUpdate") && (self.notConnected() == false)) {
+            // Update all sensors status
                 var i = parseInt(data.sensorIndex);
                 if (i >=0 || i < 8) {
                                         
@@ -215,11 +234,9 @@ $(function() {
                             self.spSensors()[i].availableSP.push(0,50,100,150,200,210,220,230,240,250,260,270,280,290,300);
                         }
                     }
-                    //console.log(self.spSensors()[i].availableSP());
                     self.spSensors()[i].SP(data.sensorSP);
-
+                    self.oldSP[i] = data.sensorSP; 
                     self.spSensors()[i].expertMode(self.expertMode);
-
                     statusStr = data.sensorActualValue;
                     if (data.sensorType == "1") {
                         //NTC sensor
@@ -227,10 +244,8 @@ $(function() {
                     } else {
                         statusStr += " - "
                     }
-
                     if (data.sensorActive == "1") {
-                        if(data.sensorEnabled == "1") {
-                            
+                        if(data.sensorEnabled == "1") {                            
                             statusStr += "Alarm";
                             colorStr = "orange";
                         } else {
@@ -248,10 +263,11 @@ $(function() {
                     }
                     self.spSensors()[i].status(statusStr);
                     self.spSensors()[i].color(colorStr);
-
                 }
             } 
+
             else if (data.type == "interlockUpdate") {
+            // Update interlock (trip) status
                 if (data.interlockStatus == "0") {
                     self.interlock("Normal");
                     self.interlockColor("black");
@@ -267,7 +283,9 @@ $(function() {
                 }
                 
             }
+
             else if (data.type == "connectionUpdate") {
+            // Update connection status
                 if (data.connectionStatus) {
                     self.connection("Online");
                     self.connectionColor("black");
@@ -287,12 +305,14 @@ $(function() {
                     }
                 }
             }
-            else if (data.type == "serialPortsUI") {
-                self.availablePorts.push(new ItemViewModel(data.port));
-                //console.log(self.availablePorts());
-            }
-            else if (data.type == "terminalUpdate") {
 
+            else if (data.type == "serialPortsUI") {
+            // Update list of serial ports available
+                self.availablePorts.push(new ItemViewModel(data.port));
+            }
+
+            else if (data.type == "terminalUpdate") {
+            // Update messages displayed on settings terminal
                 data.line.replace(/[\n\r]+/g, '');
                 self.terminalLines.push(new TerminalViewModel(data.line,data.terminalType));
                 self.countTerminalLines++;
@@ -307,10 +327,6 @@ $(function() {
         };
     }
 
-    /* view model class, parameters for constructor, container to bind to
-     * Please see http://docs.octoprint.org/en/master/plugins/viewmodels.html#registering-custom-viewmodels for more details
-     * and a full list of the available options.
-     */
     OCTOPRINT_VIEWMODELS.push({
         construct: SafetyprinterViewModel,
         // ViewModels your plugin depends on, e.g. loginStateViewModel, settingsViewModel, ...

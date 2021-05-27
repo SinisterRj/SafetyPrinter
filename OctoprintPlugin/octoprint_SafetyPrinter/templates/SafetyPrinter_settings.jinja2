@@ -6,7 +6,7 @@
 Connection:</td><td><span data-bind="style: {color: connectionColor}"><strong data-bind="text: connection"></strong></span>
 </td><td><button data-bind="click: connectBtn, text: connectionCaption" class="btn"></button></td></tr>
 <tr><td width="30%">Actual Serial Port: </td><td><span data-bind="text: connectedPort"></span></td><td></td></tr>
-<tr><td width="30%">Default Serial Port:</td><td><select data-bind="options: availablePorts, optionsText: 'name', optionsValue: 'name', value: settingsViewModel.settings.plugins.SafetyPrinter.serialport"></select></td><td><span data-bind="text: teste"></span></td></tr>
+<tr><td width="30%">Default Serial Port:</td><td><select data-bind="options: availablePorts, optionsText: 'name', optionsValue: 'name', value: settingsViewModel.settings.plugins.SafetyPrinter.serialport, valueAllowUnset: true"></select></td><td></td></tr>
 </table>
 </p>
 <h4>Sensor data:</h3>
@@ -17,7 +17,6 @@ Connection:</td><td><span data-bind="style: {color: connectionColor}"><strong da
     <th style="width:19%">Type:</th>
     <th style="width:8%">Enable:</th>
     <th style="width:8%">Status:</th>
-    <!--th>New Alarm:</th-->
     <th style="width:15%">Set Point:</th>
     <th style="width:10%">Actual Value:</th>
   </tr>
@@ -26,11 +25,11 @@ Connection:</td><td><span data-bind="style: {color: connectionColor}"><strong da
   <tr data-bind="visible: visible">  
     <td><span data-bind="text: label"></span></td>
     <td><span data-bind="text: type"></span></td>
-    <td><input type="checkbox" value="EnabledCb" data-bind="checked: enabled(), click: $parent.toggleEnabledBtn, enable:expertMode()"/></td>
+    <td><input type="checkbox" value="EnabledCb" data-bind="checked: enabled(),  enable:expertMode(), click: $parent.toggleEnabledBtn"/></td>
     <td><span data-bind="text: active"></span></td>
     <!--td><span data-bind="text: newalarm"></span></td-->	
     <td>
-      <select data-bind="options: availableSP(), value: SP, click: $parent.changeSPSel, enable:expertMode()" style="width:100%"></select>
+      <select data-bind="options: availableSP(), value: SP, enable:expertMode(), click: $parent.changeSPSel" style="width:100%"></select>
     </td>
     <td><span data-bind="text: actualvalue"></span></td>    
   </tr>
@@ -42,16 +41,17 @@ Connection:</td><td><span data-bind="style: {color: connectionColor}"><strong da
 <p>  
 <input type="checkbox" data-bind="checked: expertMode"> <b>Expert mode</b>. This option allows you to enable or disable sensors, temporarily change their set points or send commands directly through the terminal. Use with caution and just for TEST only. Any wrong configuration can shutdown your printer or disable a safety function not allowing the safety printer to act when an incident is detected.</input>
 </p>
+
 <h4>Terminal</h4>
 <div class="SPterminal">
-    <pre id="SafetyPrinterTerminal" class="pre-scrollable pre-output" data-bind="foreach: terminalLines, event: { scroll: terminalScrollEvent }"><span data-bind="text: type() + ':' + line()"></span></pre>
+    <pre id="SafetyPrinterTerminal" class="pre-scrollable pre-output" data-bind="foreach: terminalLines, click: function(){ gotoTerminalCommand(); }, event: { scroll: terminalScrollEvent }"><span data-bind="text: type() + ':' + line()"></span></pre>
     <small id="terminal-autoscroll-panel" class="pull-left">
-        <button class="btn btn-mini terminal-autoscroll" data-bind="click: toggleAutoscroll, css: {active: autoscrollEnabled}">Autoscroll</button>        
+        <button class="btn btn-mini terminal-autoscroll" data-bind="click: toggleAutoscrollBtn, css: {active: autoscrollEnabled}">Autoscroll</button>        
     </small>
     <div>
         <div class="input-block-level input-append">
             <input type="text" id="SPterminal-command" data-bind="value: command, enable:expertMode()">
-            <a href="#" class="btn add-on" id="SPterminal-send" data-bind="click: sendCommand, enable:expertMode()">Send</a>
+            <a href="#" class="btn add-on" id="SPterminal-send" data-bind="click: sendCommandBtn, enable:expertMode()">Send</a>
         </div>
     </div>
 </div>

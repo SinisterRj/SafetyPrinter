@@ -7,13 +7,20 @@ import serial
 import serial.tools.list_ports
 import time
 import termios
-#import numpy as np  #precisa instalar o numpy (usar array com indice: sudo apt-get install python3-numpy)
 
 class Connection():
     def __init__(self, plugin):
 
         self.complatibleFirmware = ["0.2.1"]
 
+        # Serial connection variables
+        self.ports = []
+        self._connected = False
+        self.serialConn = None
+        self.connectedPort = ""
+        self.waitingResponse = False
+
+        # Arrays for sensor status:
         self.sensorLabel = []
         self.sensorEnabled = []
         self.sensorActive = []
@@ -24,12 +31,13 @@ class Connection():
         self.sensorSpare2 = []
         self.sensorSpare3 = []
         self.sensorSpare4 = []
-
         self.lastStatus = []
+
         self.totalSensorsInitial = 0
         self.totalSensors = 0
         self.lastInterlockStatus = 0
 
+        # Plug-in shortcuts
         self._logger = plugin._logger
         self._printer = plugin._printer
         self._printer_profile_manager = plugin._printer_profile_manager
@@ -37,31 +45,19 @@ class Connection():
         self._identifier = plugin._identifier
         self._settings = plugin._settings
 
-        self.ports = []
-        #self.UIports = []
-        #self._logger.info("**** Iniciando o connection")
-        self._connected = False
-        self.serialConn = None
-        self.connectedPort = ""
-        self.waitingResponse = False
+        self.connect()        
 
-        self.connect()
-        
+    # *******************************  Functions to deal with Serial connections
 
     def connect(self):
+        # Connects to Safety Printer Arduino through serial port
         self._logger.info("Connecting...")
 
         self.ports = self.getAllPorts()
-        #self._logger.info("Potential ports: %s" % self.ports)
+        self._logger.info("Potential ports: %s" % self.ports)
         
-        #self.UIports.append("AUTO")
         if len(self.ports) > 0:
             for port in self.ports:
-                
-                #self._logger.info(port)
-                #self.availableSerialPorts.append(port)
-                #i += 1
-                #self.UIports.append(port)
                 
                 if ((not self._connected) and ((self._settings.get(["serialport"]) == "AUTO") or (self._settings.get(["serialport"]) == port))):
                     if self.isPrinterPort(port):
@@ -73,10 +69,11 @@ class Connection():
                             self.connectedPort = port
                         except serial.SerialException:
                             self.terminal("Connection failed!","ERROR",True)
-                            self.update_connection_status()
+                            self.update_ui_connection_status()
+
             if not self._connected:
                 self.terminal("Couldn't connect on any port.","ERROR",True)
-                self.update_connection_status()
+                self.update_ui_connection_status()
             else:
                 time.sleep(2.00) # wait for arduino boot
                 responseStr = self.serialConn.readline()
@@ -94,211 +91,25 @@ class Connection():
                         validVersion = True
 
                 if validVersion:
-                    self.update_connection_status()
+                    self.update_ui_connection_status()
                 else:
                     self.terminal("Invalid firmware version: " + connectedVersion,"ERROR",True)
                     self.closeConnection()
 
         else:
-            #msg = "NO SERIAL PORTS FOUND!"
-            #self.update_ui_error(msg)
             self.terminal("NO SERIAL PORTS FOUND!","ERROR",True)
-            self.update_connection_status()
-
-    def update_ui_ports(self):
-        for port in self.ports:
-            self._plugin_manager.send_plugin_message(self._identifier, {"type": "serialPortsUI", "port": port})
+            self.update_ui_connection_status()
 
     def closeConnection(self):
-        self._logger.error("********************** Fechando conex~ao")
+        # Disconnects Safety Printer Arduino
         if self._connected:
-            #self.serialConn.flush()  // n~ao usar pq da erro se der falha na comunicacao
-            #self.UIports = []
             self.serialConn.close()
             self.serialConn.__del__()
             self._connected = False
             self.terminal("Safety Printer MCU connection closed.","Info",True)
-            self.update_connection_status()
+            self.update_ui_connection_status()
         else :
             self.terminal("Safety Printer MCU not connected.","Info",True)
-
-    def update_ui_status(self):
-        if self._connected:
-            #self._plugin_manager.send_plugin_message(self._identifier, {"type": "connectionUpdate", "connectionStatus": True})
-            self.update_connection_status()
-            if (len(self.sensorLabel) == 0):
-                self.update_ui_labels()
-            responseStr = self.send_command("<R1>",False) 
-            if ((responseStr == "error") or (not(isinstance(responseStr, str)))):
-                return
-            numhash = responseStr.count('#')
-            totalSensors = int(numhash)
-            if totalSensors != self.totalSensorsInitial:
-                self.sensorLabel = []
-                return
-            self.interlockStatus = responseStr[3] 
-            if (self.interlockStatus != self.lastInterlockStatus) and (self.interlockStatus == "1"):
-                self._logger.info("New INTERLOCK detected")
-            
-            self.lastInterlockStatus = self.interlockStatus
-            self._plugin_manager.send_plugin_message(self._identifier, {"type": "interlockUpdate", "interlockStatus": self.interlockStatus})
-            vpos1 = 4
-            for x in range(totalSensors):
-                vpos1 = responseStr.find('#',vpos1)
-                vpos2 = responseStr.find(',',vpos1)
-                if responseStr[vpos1+1:vpos2].isdigit():
-                    index = int(responseStr[vpos1+1:vpos2])
-                else :
-                    return
-                if (index >= 0 and index < totalSensors):
-                    vpos1 = vpos2 + 1
-                    vpos2 = responseStr.find(',',vpos1)
-                    self.sensorEnabled[index] = responseStr[vpos1:vpos2]
-                    #self._logger.info(self.sensorEnabled[index])
-                    vpos1 = vpos2 + 1
-                    vpos2 = responseStr.find(',',vpos1)
-                    self.sensorActive[index] = responseStr[vpos1:vpos2]
-                    vpos1 = vpos2 + 1
-                    vpos2 = responseStr.find(',',vpos1)
-                    self.sensorActualValue[index] = responseStr[vpos1:vpos2]
-                    vpos1 = vpos2 + 1
-                    vpos2 = responseStr.find(',',vpos1)
-                    self.sensorSP[index] = responseStr[vpos1:vpos2]
-                    vpos1 = vpos2 + 1
-                    vpos2 = responseStr.find(',',vpos1)
-                    self.sensorSpare1[index] = responseStr[vpos1:vpos2]
-                    vpos1 = vpos2 + 1
-                    vpos2 = responseStr.find(',',vpos1)
-                    self.sensorSpare3[index] = responseStr[vpos1:vpos2]
-                    vpos1 = vpos2 + 1
-                    if (self.lastStatus[index] != self.sensorActive[index]) and (self.sensorActive[index] == "1"):
-                        self._logger.info("New Alarm detected - Index: " + str(index) + " Label:" + str(self.sensorLabel[index]) + " Enabled:" + str(self.sensorEnabled[index]) + " Active:" + str(self.sensorActive[index]) + " ActualValue:" + str(self.sensorActualValue[index]))
-
-                    self.lastStatus[index] = self.sensorActive[index]
-                    #self._logger.info("Index: " + str(index) + " Label:" + str(self.sensorLabel[index]) + " Enabled:" + str(self.sensorEnabled[index]) + " Active:" + str(self.sensorActive[index]) + " ActualValue:" + str(self.sensorActualValue[index]))
-                    self._plugin_manager.send_plugin_message(self._identifier, {"type": "statusUpdate", "sensorIndex": index, "sensorLabel": self.sensorLabel[index], "sensorEnabled": self.sensorEnabled[index], "sensorActive": self.sensorActive[index], "sensorActualValue": self.sensorActualValue[index], "sensorType": self.sensorType[index], "sensorSP": self.sensorSP[index]})
-        else :
-            #self._plugin_manager.send_plugin_message(self._identifier, {"type": "connectionUpdate", "connectionStatus": False})    
-            self.update_connection_status()
-
-    def update_ui_labels(self):
-
-        responseStr = self.send_command("<R2>",False)
-        if ((responseStr == "error") or (not(isinstance(responseStr, str)))):
-                return
-        numhash = responseStr.count('#')
-        vpos1 = 0
-        vpos2 = 0
-        self.totalSensorsInitial = int(numhash)
-        
-        for x in range(self.totalSensorsInitial):
-            vpos1 = responseStr.find('#',vpos1)
-            vpos2 = responseStr.find(',',vpos1)
-            #index = int(responseStr[vpos1+1:vpos2])
-            if responseStr[vpos1+1:vpos2].isdigit():
-                index = int(responseStr[vpos1+1:vpos2])
-            else :
-                return
-            #self._logger.info("indice :" + str(index) + str(len(self.sensorLabel)))
-            vpos1 = vpos2 + 1
-            vpos2 = responseStr.find(',',vpos1)
-            if index >= len(self.sensorLabel) :
-                self.sensorLabel.append(responseStr[vpos1:vpos2])
-                vpos1 = vpos2 + 1
-                vpos2 = responseStr.find(',',vpos1)
-                self.sensorType.append(responseStr[vpos1:vpos2])
-                vpos1 = vpos2 + 1
-                vpos2 = responseStr.find(',',vpos1)
-                self.sensorSpare2.append(responseStr[vpos1:vpos2])
-                vpos1 = vpos2 + 1
-                vpos2 = responseStr.find(',',vpos1)
-                self.sensorSpare4.append(responseStr[vpos1:vpos2])
-                vpos1 = vpos2 + 1
-                self.lastStatus.append("2")
-                self.sensorEnabled.append("2")
-                self.sensorActive.append("2")
-                self.sensorActualValue.append("")
-                self.sensorSP.append("0")
-                self.sensorSpare1.append("")
-                self.sensorSpare3.append("")
-            else :
-                self.sensorLabel[index] = responseStr[vpos1:vpos2]
-                vpos1 = vpos2 + 1
-                vpos2 = responseStr.find(',',vpos1)
-                self.sensorType[index] = responseStr[vpos1:vpos2]
-                vpos1 = vpos2 + 1
-                vpos2 = responseStr.find(',',vpos1)
-                self.sensorSpare2[index] = responseStr[vpos1:vpos2]
-                vpos1 = vpos2 + 1
-                vpos2 = responseStr.find(',',vpos1)
-                self.sensorSpare4[index] = responseStr[vpos1:vpos2]
-                vpos1 = vpos2 + 1
-                self.lastStatus[index] = "2"
-                self.sensorEnabled[index] = "2"
-                self.sensorActive[index] = "2"
-                self.sensorActualValue[index] = ""
-                self.sensorSP[index] = "0"
-                self.sensorSpare1[index] = ""
-                self.sensorSpare3[index] = ""
-
-    def update_connection_status(self):
-        self._plugin_manager.send_plugin_message(self._identifier, {"type": "connectionUpdate", "connectionStatus": self._connected, "port": self.connectedPort})    
-
-    def send_command(self, command, log):
-
-        if self.is_connected():
-            tries = 0
-
-            for x in range(3):
-                try:
-                    tries += 1
-                    self.serialConn.flush()
-
-                    if log:
-                        self._logger.info("Sending: %s" % command)
-                    self._plugin_manager.send_plugin_message(self._identifier, {"type": "terminalUpdate", "line": command.strip(), "terminalType": "Send"})    
-                    
-                    if not self.waitingResponse and self.is_connected():
-                        self.serialConn.write(command.encode())
-                    else:
-                        return "error"
-                    self.waitingResponse = True
-                    
-                    data = ""
-                    keepReading = True
-
-                    while keepReading:
-                        time.sleep(0.05)
-                        if self.is_connected():
-                            newline = self.serialConn.readline()
-                        if not newline.strip():
-                            keepReading = False
-                        else:
-                            data += newline.decode()
-
-                    if data: 
-                        self._plugin_manager.send_plugin_message(self._identifier, {"type": "terminalUpdate", "line": data.strip(), "terminalType": "Recv"})  
-                        if log:
-                            self._logger.info("Received: %s" % data.strip())
-                        if str(data[0:len(command)-2]) == command[1:-1]:
-                            self.waitingResponse = False
-                            return str(data)
-                        break
-                except (serial.SerialException, termios.error):
-                    self.waitingResponse = False
-                    self._logger.error("Safety Printer communication error.")
-                    self.closeConnection()
-                    
-                    return "error"
-                if tries >= 3:
-                    self.waitingResponse = False
-                    self._logger.error("Safety Printer communication error.")
-                    self.closeConnection()                    
-                    return "error"
-        else:
-            self.waitingResponse = False
-            return "error"
-        self.waitingResponse = False
 
     # below code "stolen" from https://gitlab.com/mosaic-mfg/palette-2-plugin/blob/master/octoprint_palette2/Omega.py
     def getAllPorts(self):
@@ -348,6 +159,147 @@ class Connection():
     def is_connected(self):
         return self._connected
 
+    # *******************************  Functions to update info on knockout interface
+
+    def update_ui_ports(self):
+        # Send one message for each serial port detected
+        for port in self.ports:
+            self._plugin_manager.send_plugin_message(self._identifier, {"type": "serialPortsUI", "port": port})
+
+    def update_ui_status(self):
+        # Send one message for each sensor with all status
+        if self._connected:            
+            
+            if (len(self.sensorLabel) == 0):
+                self.update_ui_sensor_labels()
+            
+            responseStr = self.send_command("<R1>",False) 
+
+            if ((responseStr == "error") or (not(isinstance(responseStr, str)))):
+                return
+
+            numhash = responseStr.count('#')
+            totalSensors = int(numhash)
+
+            if totalSensors != self.totalSensorsInitial:
+                self.sensorLabel = []
+                return
+
+            self.interlockStatus = responseStr[3] 
+            
+            if (self.interlockStatus != self.lastInterlockStatus) and (self.interlockStatus == "1"):
+                self._logger.info("New INTERLOCK detected")
+            
+            self.lastInterlockStatus = self.interlockStatus
+            self._plugin_manager.send_plugin_message(self._identifier, {"type": "interlockUpdate", "interlockStatus": self.interlockStatus})
+            vpos1 = 4
+
+            for x in range(totalSensors):
+                vpos1 = responseStr.find('#',vpos1)
+                vpos2 = responseStr.find(',',vpos1)
+                
+                if responseStr[vpos1+1:vpos2].isdigit():
+                    index = int(responseStr[vpos1+1:vpos2])
+                else :
+                    return
+                
+                if (index >= 0 and index < totalSensors):
+                    vpos1 = vpos2 + 1
+                    vpos2 = responseStr.find(',',vpos1)
+                    self.sensorEnabled[index] = responseStr[vpos1:vpos2]
+                    vpos1 = vpos2 + 1
+                    vpos2 = responseStr.find(',',vpos1)
+                    self.sensorActive[index] = responseStr[vpos1:vpos2]
+                    vpos1 = vpos2 + 1
+                    vpos2 = responseStr.find(',',vpos1)
+                    self.sensorActualValue[index] = responseStr[vpos1:vpos2]
+                    vpos1 = vpos2 + 1
+                    vpos2 = responseStr.find(',',vpos1)
+                    self.sensorSP[index] = responseStr[vpos1:vpos2]
+                    vpos1 = vpos2 + 1
+                    vpos2 = responseStr.find(',',vpos1)
+                    self.sensorSpare1[index] = responseStr[vpos1:vpos2]
+                    vpos1 = vpos2 + 1
+                    vpos2 = responseStr.find(',',vpos1)
+                    self.sensorSpare3[index] = responseStr[vpos1:vpos2]
+                    vpos1 = vpos2 + 1
+                    
+                    if (self.lastStatus[index] != self.sensorActive[index]) and (self.sensorActive[index] == "1"):
+                        self._logger.info("New Alarm detected - Index: " + str(index) + " Label:" + str(self.sensorLabel[index]) + " Enabled:" + str(self.sensorEnabled[index]) + " Active:" + str(self.sensorActive[index]) + " ActualValue:" + str(self.sensorActualValue[index]))
+
+                    self.lastStatus[index] = self.sensorActive[index]
+                    #self._logger.info("Index: " + str(index) + " Label:" + str(self.sensorLabel[index]) + " Enabled:" + str(self.sensorEnabled[index]) + " Active:" + str(self.sensorActive[index]) + " ActualValue:" + str(self.sensorActualValue[index]))
+                    self._plugin_manager.send_plugin_message(self._identifier, {"type": "statusUpdate", "sensorIndex": index, "sensorLabel": self.sensorLabel[index], "sensorEnabled": self.sensorEnabled[index], "sensorActive": self.sensorActive[index], "sensorActualValue": self.sensorActualValue[index], "sensorType": self.sensorType[index], "sensorSP": self.sensorSP[index]})
+        else :
+            self.update_ui_connection_status()
+
+    def update_ui_sensor_labels(self):
+        # Update local arrays with sensor labels and type. create items for all the other properties. Should run just after connection, only one time or when the number of sensor status sended by arduino changes
+        responseStr = self.send_command("<R2>",False)
+        
+        if ((responseStr == "error") or (not(isinstance(responseStr, str)))):
+                return
+        
+        numhash = responseStr.count('#')
+        vpos1 = 0
+        vpos2 = 0
+        self.totalSensorsInitial = int(numhash)
+        
+        for x in range(self.totalSensorsInitial):
+            vpos1 = responseStr.find('#',vpos1)
+            vpos2 = responseStr.find(',',vpos1)
+        
+            if responseStr[vpos1+1:vpos2].isdigit():
+                index = int(responseStr[vpos1+1:vpos2])
+            else :
+                return
+        
+            vpos1 = vpos2 + 1
+            vpos2 = responseStr.find(',',vpos1)
+        
+            if index >= len(self.sensorLabel) :
+                self.sensorLabel.append(responseStr[vpos1:vpos2])
+                vpos1 = vpos2 + 1
+                vpos2 = responseStr.find(',',vpos1)
+                self.sensorType.append(responseStr[vpos1:vpos2])
+                vpos1 = vpos2 + 1
+                vpos2 = responseStr.find(',',vpos1)
+                self.sensorSpare2.append(responseStr[vpos1:vpos2])
+                vpos1 = vpos2 + 1
+                vpos2 = responseStr.find(',',vpos1)
+                self.sensorSpare4.append(responseStr[vpos1:vpos2])
+                vpos1 = vpos2 + 1
+                self.lastStatus.append("")
+                self.sensorEnabled.append("")
+                self.sensorActive.append("")
+                self.sensorActualValue.append("")
+                self.sensorSP.append("")
+                self.sensorSpare1.append("")
+                self.sensorSpare3.append("")
+            else :
+                self.sensorLabel[index] = responseStr[vpos1:vpos2]
+                vpos1 = vpos2 + 1
+                vpos2 = responseStr.find(',',vpos1)
+                self.sensorType[index] = responseStr[vpos1:vpos2]
+                vpos1 = vpos2 + 1
+                vpos2 = responseStr.find(',',vpos1)
+                self.sensorSpare2[index] = responseStr[vpos1:vpos2]
+                vpos1 = vpos2 + 1
+                vpos2 = responseStr.find(',',vpos1)
+                self.sensorSpare4[index] = responseStr[vpos1:vpos2]
+                vpos1 = vpos2 + 1
+                self.lastStatus[index] = ""
+                self.sensorEnabled[index] = ""
+                self.sensorActive[index] = ""
+                self.sensorActualValue[index] = ""
+                self.sensorSP[index] = ""
+                self.sensorSpare1[index] = ""
+                self.sensorSpare3[index] = ""
+
+    def update_ui_connection_status(self):
+        # Updates knockout connection status
+        self._plugin_manager.send_plugin_message(self._identifier, {"type": "connectionUpdate", "connectionStatus": self._connected, "port": self.connectedPort})    
+
     def terminal(self,msg,ttype,log):
         self._plugin_manager.send_plugin_message(self._identifier, {"type": "terminalUpdate", "line": msg, "terminalType": ttype})  
         if log:
@@ -355,3 +307,60 @@ class Connection():
                 self._logger.error(msg)
             else:
                 self._logger.info(msg)
+
+    # ****************************************** Functions to interact with Arduino when connected
+
+    def send_command(self, command, log):
+        # send serial commands to arduino and receives the answer
+        if self.is_connected():
+            tries = 0
+
+            for x in range(3):
+                try:
+                    tries += 1
+                    self.serialConn.flush()
+                    self.terminal(command.strip(), "Send", False) 
+                    
+                    if not self.waitingResponse and self.is_connected():
+                        self.serialConn.write(command.encode())
+                    else:
+                        return "error"
+                    
+                    self.waitingResponse = True                    
+                    data = ""
+                    keepReading = True
+
+                    while keepReading:
+                        time.sleep(0.05)
+                        if self.is_connected():
+                            newline = self.serialConn.readline()
+                        if not newline.strip():
+                            keepReading = False
+                        else:
+                            data += newline.decode()
+
+                    if data: 
+                        self.terminal(data.strip(), "Recv", False) 
+
+                        if str(data[0:len(command)-2]) == command[1:-1]:
+                            self.waitingResponse = False
+                            return str(data)
+
+                        break
+                
+                except (serial.SerialException, termios.error):
+                    self.waitingResponse = False
+                    self._logger.error("Safety Printer communication error.")
+                    self.closeConnection()                    
+                    return "error"
+
+                if tries >= 3:
+                    self.waitingResponse = False
+                    self._logger.error("Safety Printer communication error.")
+                    self.closeConnection()                    
+                    return "error"
+        else:
+            self.waitingResponse = False
+            return "error"
+
+        self.waitingResponse = False

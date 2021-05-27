@@ -15,20 +15,30 @@ class SafetyPrinterPlugin(
     octoprint.plugin.AssetPlugin,
     octoprint.plugin.SimpleApiPlugin,
     octoprint.plugin.TemplatePlugin,
-    #octoprint.plugin.EventHandlerPlugin,
     octoprint.plugin.ShutdownPlugin):
 
     def new_connection(self):
-        self._logger.info("******** Attempting to connect to Safety Printer MCU ...")
+        self._logger.info("Attempting to connect to Safety Printer MCU ...")
         self.conn = Connection.Connection(self)
         self.startTimer(1.0)
 
+    def startTimer(self, interval):
+        # timer that updates UI with Arduino information
+        self._commTimer = RepeatedTimer(interval, self.updateStatus, None, None, True)
+        self._commTimer.start()
+
+    def updateStatus(self):
+        # Update UI status (connection, trip and sensors)
+        self.conn.update_ui_connection_status()
+        if self.conn.is_connected():
+            self.conn.update_ui_status()
+        else:
+            self._commTimer.cancel()
+
     # ~~ StartupPlugin mixin
     def on_after_startup(self):
-        self._logger.info("******************* Iniciando o plugin ***************************")
-        #self.flag = True
+        self._logger.info("******************* Starting Safety Printer Plug-in ***************************")
         self._logger.info("Default Serial Port:" + str(self._settings.get(["serialport"])))
-
         self.new_connection()
 
     # ~~ ShutdonwPlugin mixin
@@ -37,23 +47,10 @@ class SafetyPrinterPlugin(
         self._commTimer.cancel()
         self.conn.closeConnection()
                             
-    def startTimer(self, interval):
-        self._commTimer = RepeatedTimer(interval, self.updateStatus, None, None, True)
-        self._commTimer.start()
-
-    def updateStatus(self):
-        if self.conn.is_connected():
-            self.conn.update_ui_status()
-        else:
-            self._commTimer.cancel()
-            self._plugin_manager.send_plugin_message(self._identifier, {"type": "connectionUpdate", "connectionStatus": False})
-
-    ##~~ SettingsPlugin mixin
-    
+    ##~~ SettingsPlugin mixin    
     def get_settings_defaults(self):
         return dict(
             serialport="AUTO"
-            # put your plugin's default settings here
         )
 
     def get_template_vars(self):
@@ -68,19 +65,13 @@ class SafetyPrinterPlugin(
         ]
 
     def get_assets(self):
-    # Define your plugin's asset files to automatically include in the
-    # core UI here.
         return dict(
             js=["js/SafetyPrinter.js"],
             css=["css/SafetyPrinter.css"],
-            #less=["less/SafetyPrinter.less"]
           )
 
     ##~~ Softwareupdate hook
     def get_update_information(self):
-        # Define the configuration for your plugin to use with the Software Update
-        # Plugin here. See https://docs.octoprint.org/en/master/bundledplugins/softwareupdate.html
-        # for details.
         return dict(
             SafetyPrinter=dict(
                 displayName="Safety Printer",
@@ -97,6 +88,8 @@ class SafetyPrinterPlugin(
              )
           )
     
+    # Simple API commands. Deal with UI commands
+
     def get_api_commands(self):
         return dict(
             reconnect=[],
@@ -108,7 +101,6 @@ class SafetyPrinterPlugin(
             changeSP=["id", "newSP"],
             sendCommand=["serialCommand"],
             saveEEPROM=[]
-
         )
 
     def on_api_command(self, command, data):
@@ -182,27 +174,6 @@ class SafetyPrinterPlugin(
                 self.conn.closeConnection()
                 break
 
-    '''
-    def on_event(self, event, payload):
-        if event == Events.CLIENT_OPENED:
-            self.update_ui()
-        elif event == Events.PRINT_STARTED:
-            self._logger.info("Got event: {}".format(event))
-            self.print_started()
-        elif event == Events.PRINT_DONE:
-            self._logger.info("Got event: {}".format(event))
-            self.print_stopped()
-        elif event == Events.PRINT_FAILED:
-            self._logger.info("Got event: {}".format(event))
-            self.print_stopped()
-        elif event == Events.PRINT_CANCELLING:
-            self._logger.info("Got event: {}".format(event))
-            #self.print_stopped()
-        elif event == Events.PRINT_CANCELLED:
-            self._logger.info("Got event: {}".format(event))
-            #self.print_stopped()
-        return
-    '''
 __plugin_name__ = "Safety Printer"
 __plugin_pythoncompat__ = ">=2.7,<4" # python 2 and 3
 
