@@ -56,6 +56,10 @@ class Connection():
         self.ports = self.getAllPorts()
         self._logger.info("Potential ports: %s" % self.ports)
         
+        if ((self._printer.get_current_connection()[1] == None) and (self._settings.get(["serialport"]) == "AUTO")):
+            self.terminal("Can't connect on AUTO serial port if printer is not connected. Aborting Safety Printer MCU connection.","ERROR",True)
+            return
+
         if len(self.ports) > 0:
             for port in self.ports:
                 
@@ -163,6 +167,7 @@ class Connection():
 
     def update_ui_ports(self):
         # Send one message for each serial port detected
+        self.ports = self.getAllPorts()
         for port in self.ports:
             self._plugin_manager.send_plugin_message(self._identifier, {"type": "serialPortsUI", "port": port})
 

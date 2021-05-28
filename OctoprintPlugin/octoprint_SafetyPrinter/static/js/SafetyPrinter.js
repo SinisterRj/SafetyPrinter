@@ -44,7 +44,7 @@ $(function() {
         // Settings variables
         self.autoscrollEnabled = ko.observable(true);
         self.expertMode = ko.observable(false);
-        self.availablePorts = ko.observableArray([new ItemViewModel("AUTO")]);
+        self.availablePorts = ko.observableArray();
         self.terminalLines = ko.observableArray();
         self.countTerminalLines = 0;
         self.command = ko.observable();
@@ -74,7 +74,9 @@ $(function() {
         ]); 
 
         self.onStartupComplete = function() {
-            // Update serial ports info
+            // Update serial ports info. Also called when user clicks on "default Serial" combo box
+            self.availablePorts.removeAll();
+            self.availablePorts.push(new ItemViewModel("AUTO"));
             OctoPrint.simpleApiCommand("SafetyPrinter", "getPorts");
         };
 

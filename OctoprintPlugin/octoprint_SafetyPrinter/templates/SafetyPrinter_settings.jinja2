@@ -6,7 +6,7 @@
 Connection:</td><td><span data-bind="style: {color: connectionColor}"><strong data-bind="text: connection"></strong></span>
 </td><td><button data-bind="click: connectBtn, text: connectionCaption" class="btn"></button></td></tr>
 <tr><td width="30%">Actual Serial Port: </td><td><span data-bind="text: connectedPort"></span></td><td></td></tr>
-<tr><td width="30%">Default Serial Port:</td><td><select data-bind="options: availablePorts, optionsText: 'name', optionsValue: 'name', value: settingsViewModel.settings.plugins.SafetyPrinter.serialport, valueAllowUnset: true"></select></td><td></td></tr>
+<tr><td width="30%">Default Serial Port:</td><td><select data-bind="options: availablePorts, optionsText: 'name', optionsValue: 'name', value: settingsViewModel.settings.plugins.SafetyPrinter.serialport, valueAllowUnset: true, click: onStartupComplete"></select></td><td></td></tr>
 </table>
 </p>
 <h4>Sensor data:</h3>
