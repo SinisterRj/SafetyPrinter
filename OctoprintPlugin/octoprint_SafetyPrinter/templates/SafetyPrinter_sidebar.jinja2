@@ -12,11 +12,11 @@
 <table style="width:100%">
   <tr>
     <td>Connection: <span data-bind="style: {color: connectionColor}"><strong data-bind="text: connection"></strong></span></td>
-    <td style="text-align: right;"><span data-bind="visible: notConnected"><button data-bind="click: connectBtn">Connect</button></span></td>
+    <td style="text-align: right;"><span data-bind="visible: notConnected"><button data-bind="click: connectBtn" class="btn">Connect</button></span></td>
   </tr>	
   <tr data-bind="hidden: notConnected">
     <td><span data-bind="style: {color: interlockColor}">Status: <strong data-bind="text: interlock"></strong></span></td>
-    <td style="text-align: right;"><span data-bind="visible: tripBtnVisible"><button data-bind="click: tripResetBtn">Reset</button></span></td>
+    <td style="text-align: right;"><span data-bind="visible: tripBtnVisible"><button data-bind="click: tripResetBtn" class="btn">Reset</button></span></td>
   </tr>
 </table>
 <span data-bind="hidden: notConnected">

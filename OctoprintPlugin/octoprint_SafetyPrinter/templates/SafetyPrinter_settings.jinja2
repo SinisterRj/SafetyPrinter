@@ -46,13 +46,20 @@ Connection:</td><td><span data-bind="style: {color: connectionColor}"><strong da
 <div class="SPterminal">
     <pre id="SafetyPrinterTerminal" class="pre-scrollable pre-output" data-bind="foreach: terminalLines, click: function(){ gotoTerminalCommand(); }, event: { scroll: terminalScrollEvent }"><span data-bind="text: type() + ':' + line()"></span></pre>
     <small id="terminal-autoscroll-panel" class="pull-left">
-        <button class="btn btn-mini terminal-autoscroll" data-bind="click: toggleAutoscrollBtn, css: {active: autoscrollEnabled}">Autoscroll</button>        
+        <button class="btn btn-mini terminal-autoscroll" data-bind="click: toggleAutoscrollBtn, css: {active: autoscrollEnabled}">Autoscroll</button><span data-bind="visible: !autoscrollEnabled()" style="display: none">(<a href="javascript:void(0)" data-bind="click: scrollToEnd">Scroll to end</a>)</span>       
     </small>
     <div>
         <div class="input-block-level input-append">
             <input type="text" id="SPterminal-command" data-bind="value: command, enable:expertMode()">
             <a href="#" class="btn add-on" id="SPterminal-send" data-bind="click: sendCommandBtn, enable:expertMode()">Send</a>
         </div>
+    </div>
+</div>
+<div class="row-fluid">
+    <div class="span6" id="terminal-filterpanel">
+            <label class="checkbox">
+                <input type="checkbox" data-bind="checked: tempMsgFilter"> Supress status (&ltR1&gt) messages.
+            </label>
     </div>
 </div>
 <script type="application/javascript">

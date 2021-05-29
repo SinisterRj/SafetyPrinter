@@ -50,6 +50,8 @@ $(function() {
         self.command = ko.observable();
         self.tabActive = false;
         self.oldSP = ["0","0","0","0","0","0","0","0"];
+        self.tempMsgFilter = ko.observable(false);
+        self.startedFilter = false;
 
         // Navbar variables
         self.navbarcolor = ko.observable("black");
@@ -143,6 +145,11 @@ $(function() {
                 self.updateOutput();
             }
         };
+
+        self.toggleFilterBtn = function() {
+            // enable or disable <R1> messages on terminal
+            self.tempMsgFilter(!self.tempMsgFilter());
+        }
 
         self.sendCommandBtn = function() {
             // Send generic user comands from command line to arduino
@@ -315,13 +322,22 @@ $(function() {
 
             else if (data.type == "terminalUpdate") {
             // Update messages displayed on settings terminal
+                
                 data.line.replace(/[\n\r]+/g, '');
-                self.terminalLines.push(new TerminalViewModel(data.line,data.terminalType));
-                self.countTerminalLines++;
+                if (!self.tempMsgFilter() || (data.line.search("R1") == -1)) {
+                    self.startedFilter = false;
+                    self.terminalLines.push(new TerminalViewModel(data.line,data.terminalType));
+                    self.countTerminalLines++;
+
+                } else if (!self.startedFilter) {
+                    self.startedFilter = true;
+                    self.terminalLines.push(new TerminalViewModel("[...]",""));
+                    self.countTerminalLines++;
+
+                }
                 if (self.countTerminalLines > 3600) {
                     self.terminalLines.shift(); //removes the first line
                 }
-
                 if (self.autoscrollEnabled()) {
                     self.scrollToEnd();
                 }

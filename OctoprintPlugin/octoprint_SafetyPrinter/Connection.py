@@ -6,12 +6,12 @@ import threading
 import serial
 import serial.tools.list_ports
 import time
-import termios
+#import termios
 
 class Connection():
     def __init__(self, plugin):
 
-        self.complatibleFirmware = ["0.2.1"]
+        self.compatibleFirmware = ["0.2.1","0.2.2"]
 
         # Serial connection variables
         self.ports = []
@@ -90,7 +90,7 @@ class Connection():
                 connectedVersion = responseStr[vpos1+1:vpos2]
 
                 validVersion = False
-                for version in self.complatibleFirmware:
+                for version in self.compatibleFirmware:
                     if version == connectedVersion:
                         validVersion = True
 
