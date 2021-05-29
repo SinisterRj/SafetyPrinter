@@ -15,6 +15,11 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  * 
+ * Version 0.2.2
+ * Changes:
+ * 1) Defined limits for set point definition.
+ * 2) Now EEPROM read uses the addr 0 as a version flag. If it is different from EEPROMVERSION (because new release changed EEPROM structure), the firmware will overwrite it.
+ * 
  * Version: 0.2.1
  * 05/26/2021
  * Changes: 
@@ -35,7 +40,7 @@
 // Configuration
 
 #define InterlockRelayPin     6
-#define InterlockPolarity     HIGH  //Change if you need to toggle the behavior of the interlock pin (if its HIGH it means that the [InterlockRelayPin] output will be LOW under normal conditions and HIGH when an interlock occurs)
+#define InterlockPolarity     LOW  //Change if you need to toggle the behavior of the interlock pin (if its HIGH it means that the [InterlockRelayPin] output will be LOW under normal conditions and HIGH when an interlock occurs)
 
 #define ResetButtonPin        11
 #define AlarmLedPin           10
@@ -181,7 +186,8 @@
 
 // *************************** Don't change after this line **********************************
 
-#define VERSION "0.2.1"
+#define VERSION "0.2.2"
+#define EEPROMVERSION 1   // Incremental BYTE. Don't use 255. Firmware overwrites the EEPROM with standard values if the number readed from EEPROM is different. change everytime that EEPROM structure is changed.
  
 typedef struct
 {
@@ -294,6 +300,11 @@ typedef struct
   bool started = false;
 } tTimer;
 
+//Defines the SP limits for each of the sensor types. 
+const int SPLimits[2][2] = {
+  { 0, 1 },   // type 0 = Digital
+  { 0, 300 }  // type 1 = NTC temperature
+};
 bool interlockStatus = false;
 bool interlockStatusChanged = false;
 bool activeFireAlarm = false;
@@ -394,7 +405,7 @@ void loop() {
 void readEEPROMData() {
   /* Check EEPROM for the last interlock state
   * EEPROM MAP:
-  * [0] : EEPROM flag to check if its written or not;
+  * [0] : EEPROM version flag to check if its written or not;
   * [1] : Interlock Status;
   * [2] : Sensors Enabled status;
   * [3] : Sensor 0 alarm set point (byte 1)
@@ -415,7 +426,7 @@ void readEEPROMData() {
   * [16] : Sensor 7 alarm set point (byte 2)  
   */
   int firstTimeRun = EEPROM.read(0);
-  if (firstTimeRun == 0) { // Verify if there is something on EEPROM address 0 (the standard is 255 when its blank)
+  if (firstTimeRun == EEPROMVERSION) { // Verify if there is EEPROMVERSION on EEPROM address 0 (the standard is 255 when its blank)
      interlockStatus = EEPROM.read(1);
      if (interlockStatus) {
         interlock(false,0);
@@ -428,18 +439,24 @@ void readEEPROMData() {
       if (7-i < numOfSensors) {
          sensors[7-i].enabled = EEPROMSensorsEnabled % 2;   
       }
-      EEPROMSensorsEnabled = EEPROMSensorsEnabled / 2; 
-
+      EEPROMSensorsEnabled = EEPROMSensorsEnabled / 2;
     }
     for(int i = 0; i < numOfSensors; i++){
         byte byte1 = EEPROM.read(3 + (i*2));
         byte byte2 = EEPROM.read(4 + (i*2));
+        int oldSP = sensors[i].alarmSP;
         sensors[i].alarmSP = (byte1 << 8) + byte2;
+        if ((sensors[i].alarmSP < SPLimits[sensors[i].type][0]) || (sensors[i].alarmSP > SPLimits[sensors[i].type][1])) {
+           // Wrong value. Change back to standard:           
+           Serial.println("Invalid EEPROM set point read ("+ String(sensors[i].alarmSP) +"). Defining standard set point to " + sensors[i].label + " (" + String(oldSP) + ").");
+           sensors[i].alarmSP = oldSP;
+        }
     }
     
   } else {
     //Write EEPROM for the first time
-    EEPROM.update(0,0); // Controll EEprom flag
+    Serial.println(F("Wrong EEPROM version. Overwriting EEPROM with standard values."));
+    EEPROM.update(0,EEPROMVERSION); // Controll EEPROM version
     EEPROM.update(1,0); // Interlock status
   
     byte EEPROMSensorsEnabled = 0; 
@@ -629,17 +646,15 @@ void Cmd_c4(char argument1[8], char argument2[8])
    // Serial command to change set point
    int index = atoi(argument1);
    if (index >= 0 and index < numOfSensors) {
-    int newSP = atoi(argument2);
-    int oldSP = sensors[index].alarmSP;
-    if (sensors[index].type == DigitalSensor and (newSP == 0 or newSP == 1)){
-        sensors[index].alarmSP = newSP;   
-        Serial.println("C4: Sensor: " + sensors[index].label + " set point changed from:" + String(oldSP) + " to: " + String(sensors[index].alarmSP) + "."); 
-     } else if (sensors[index].type == NTCSensor) { 
-        sensors[index].alarmSP = newSP; 
-        Serial.println("C4: Sensor: " + sensors[index].label + " set point changed from:" + String(oldSP) + " to: " + String(sensors[index].alarmSP) + ".");  
-     } else {
-        ReturnError(2,argument2);
-     }       
+      int newSP = atoi(argument2);
+      int oldSP = sensors[index].alarmSP;
+      if ((newSP < SPLimits[sensors[index].type][0]) || (newSP > SPLimits[sensors[index].type][1])) {
+         // Wrong value.        
+         Serial.println("C4: Alarm set point for: " + sensors[index].label + " must be between or equal to: " + SPLimits[sensors[index].type][0] + " and " + SPLimits[sensors[index].type][1] + "."); 
+      } else {
+         sensors[index].alarmSP = newSP;   
+         Serial.println("C4: Sensor: " + sensors[index].label + " set point changed from:" + String(oldSP) + " to: " + String(sensors[index].alarmSP) + "."); 
+      }       
    } else {
       ReturnError(1,argument1);
    }
