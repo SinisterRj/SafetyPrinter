@@ -71,8 +71,8 @@ class Connection():
                             self.serialConn = serial.Serial(port, 115200, timeout=0.5)
                             self._connected = True
                             self.connectedPort = port
-                        except serial.SerialException:
-                            self.terminal("Connection failed!","ERROR",True)
+                        except serial.SerialException as e:
+                            self.terminal("Connection failed! " + str(e),"ERROR",True)
                             self.update_ui_connection_status()
 
             if not self._connected:
@@ -116,19 +116,31 @@ class Connection():
             self.terminal("Safety Printer MCU not connected.","Info",True)
 
     # below code "stolen" from https://gitlab.com/mosaic-mfg/palette-2-plugin/blob/master/octoprint_palette2/Omega.py
+    #| Chip                | VID  | PID                      | Board                           | Link                                                                     | Note  
+    #| Atmel ATMEGA16U2    | 2341 | 003D,003F,0042,0043,0044 | UNO, MEGA2560, ADK, DUE, clones | Included in Arduino software under drivers                               |  
+    #| Atmel ATMEGA32U4    | 2341 | 8036 etc.                | Leonardo, micro, clones         | Included in Arduino software under drivers                               |  
+    #| FTDI FT232RL        | 0403 | 6001                     | Nano, Duemilanove, MEGA, clones | http://www.ftdichip.com/Drivers/VCP.htm                                  | Included in Arduino software under drivers. Many fakes exist so avoid buying cheap Arduino compatible board with this chip.  
+    #| WCH CH34X           | 1A86 | 5523, 7523 etc.          | Many clone boards               | http://www.wch.cn/download/CH341SER_ZIP.html                             | Supports win 10. Seems best choice for Arduino compatible boards.  
+    #| Prolific PL2303     | 10CE |                          | Many clone boards               | http://www.prolific.com.tw/US/ShowProduct.aspx?p_id=225&pcid=41          | The company claims that many older PL2303 models on the market are fakes so it has stopped supplying drivers for win 7 and up on these models.  
+    #| Silicon Labs CP210X | 11F6 |                          | Many clone boards               | https://www.silabs.com/products/mcu/Pages/USBtoUARTBridgeVCPDrivers.aspx | The driver may not work with win 10 so if you just upgraded to win 10 and your board stops working, … 
+    # Source: https://forum.arduino.cc/t/help-me-confirm-some-vid-pid-and-comments-for-an-intall-tutorial/339586
+
     def getAllPorts(self):
         baselist = []
 
         if 'win32' in sys.platform:
             # use windows com stuff
-            self._logger.info("Using a windows machine")
-            for port in serial.tools.list_ports.grep('.*0403:6015.*'):
-                self._logger.info("got port %s" % port.device)
-                baselist.append(port.device)
+            self._logger.info("Using a windows machine") 
 
-        baselist = baselist + glob.glob('/dev/serial/by-id/*FTDI*') + glob.glob('/dev/*usbserial*') + glob.glob(
-            '/dev/*usbmodem*') + glob.glob('/dev/serial/by-id/*USB_Serial*') + glob.glob('/dev/serial/by-id/usb-*')
-        baselist = self.getRealPaths(baselist)
+            arduinoVIDPID = ['.*2341:003D.*','.*2341:003F.*','.*2341:0042.*','.*2341:0043.*','.*2341:0044.*','.*0403:6001.*','.*0403:6015.*','.*1A86:5523.*','.*1A86:7523.*']
+            for arduino in arduinoVIDPID:
+                for port in serial.tools.list_ports.grep(arduino):
+                    self._logger.info("got port %s" % port.device)
+                    baselist.append(port.device)
+        else:
+            baselist = baselist + glob.glob('/dev/serial/by-id/*FTDI*') + glob.glob('/dev/*usbserial*') + glob.glob(
+                '/dev/*usbmodem*') + glob.glob('/dev/serial/by-id/*USB_Serial*') + glob.glob('/dev/serial/by-id/usb-*')
+            baselist = self.getRealPaths(baselist)
         # get unique values only
         baselist = list(set(baselist))
         return baselist
