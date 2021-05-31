@@ -65,14 +65,14 @@ $(function() {
         self.connectionCaption = ko.observable("Connect");
 
         self.spSensors = ko.observableArray([
-           new spSensorsType(false,"","offline","gray","0",false,"0","0","0",[],false),
-           new spSensorsType(false,"","offline","gray","0",false,"0","0","0",[],false),
-           new spSensorsType(false,"","offline","gray","0",false,"0","0","0",[],false),
-           new spSensorsType(false,"","offline","gray","0",false,"0","0","0",[],false),
-           new spSensorsType(false,"","offline","gray","0",false,"0","0","0",[],false),
-           new spSensorsType(false,"","offline","gray","0",false,"0","0","0",[],false),
-           new spSensorsType(false,"","offline","gray","0",false,"0","0","0",[],false),
-           new spSensorsType(false,"","offline","gray","0",false,"0","0","0",[],false)
+           new spSensorsType(false,"","offline","gray","0",false,false,"0","0",[],false),
+           new spSensorsType(false,"","offline","gray","0",false,false,"0","0",[],false),
+           new spSensorsType(false,"","offline","gray","0",false,false,"0","0",[],false),
+           new spSensorsType(false,"","offline","gray","0",false,false,"0","0",[],false),
+           new spSensorsType(false,"","offline","gray","0",false,false,"0","0",[],false),
+           new spSensorsType(false,"","offline","gray","0",false,false,"0","0",[],false),
+           new spSensorsType(false,"","offline","gray","0",false,false,"0","0",[],false),
+           new spSensorsType(false,"","offline","gray","0",false,false,"0","0",[],false)
         ]); 
 
         self.onStartupComplete = function() {
@@ -185,6 +185,10 @@ $(function() {
             OctoPrint.simpleApiCommand("SafetyPrinter", "resetTrip");
         };
 
+        self.statusBtn = function() {
+
+        };
+
         // ************* Functions for general buttons:
 
         self.connectBtn = function() {
@@ -192,7 +196,6 @@ $(function() {
             if (self.notConnected()) {
                 self.connection("Connecting");
                 self.connectionColor("black");
-                self.notConnected(false);
                 OctoPrint.simpleApiCommand("SafetyPrinter", "reconnect");    
             } else {
                 self.connection("Disconecting");
@@ -228,9 +231,9 @@ $(function() {
                     }
                     self.spSensors()[i].actualvalue(data.sensorActualValue);
                     if (data.sensorActive == "1") {
-                        self.spSensors()[i].active("Alarm");    
+                        self.spSensors()[i].active(true);    
                     } else {
-                        self.spSensors()[i].active("Normal"); 
+                        self.spSensors()[i].active(false); 
                     }
                     if (data.sensorType == "0") {
                         self.spSensors()[i].type("Digital");
@@ -246,12 +249,12 @@ $(function() {
                     self.spSensors()[i].SP(data.sensorSP);
                     self.oldSP[i] = data.sensorSP; 
                     self.spSensors()[i].expertMode(self.expertMode);
-                    statusStr = data.sensorActualValue;
+                    //statusStr = data.sensorActualValue;
                     if (data.sensorType == "1") {
                         //NTC sensor
-                        statusStr += "°C - "
+                        statusStr = data.sensorActualValue + "°C "
                     } else {
-                        statusStr += " - "
+                        statusStr = ""
                     }
                     if (data.sensorActive == "1") {
                         if(data.sensorEnabled == "1") {                            
@@ -263,10 +266,10 @@ $(function() {
                         }                        
                     } else {
                         if(data.sensorEnabled == "1") {
-                            statusStr += "OK";
+                            //statusStr += "OK";
                             colorStr = "green";
                         } else {
-                            statusStr += "OK (Disabled)";
+                            statusStr += "(Disabled)";
                             colorStr = "gray";
                         }                        
                     }
@@ -281,12 +284,14 @@ $(function() {
                     self.interlock("Normal");
                     self.interlockColor("black");
                     self.tripBtnVisible(false)
+
                     self.navbarcolor("green");
                     self.navbartitle("Safety Printer: Normal operation");
                 } else {
                     self.interlock("TRIP");
                     self.interlockColor("red");
                     self.tripBtnVisible(true);
+
                     self.navbarcolor("red");
                     self.navbartitle("Safety Printer: TRIP!");
                 }
@@ -298,16 +303,19 @@ $(function() {
                 if (data.connectionStatus) {
                     self.connection("Online");
                     self.connectionColor("black");
+                    self.connectionCaption("Disconnect");
                     self.notConnected(false);
                     self.connectedPort(data.port);
-                    self.connectionCaption("Disconnect");
+                    
                 } else {
                     self.connection("Offline");
                     self.connectionColor("red");
-                    self.notConnected(true);
+                    self.connectionCaption("Connect");
+                    self.notConnected(true);                    
+
                     self.navbarcolor("black");
                     self.navbartitle("Safety Printer: Offline");
-                    self.connectionCaption("Connect");
+
                     var i;
                     for (i = 0; i < 8; i++) {                                         
                         self.spSensors()[i].visible(false);   

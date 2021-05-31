@@ -26,7 +26,7 @@ Connection:</td><td><span data-bind="style: {color: connectionColor}"><strong da
     <td><span data-bind="text: label"></span></td>
     <td><span data-bind="text: type"></span></td>
     <td><input type="checkbox" value="EnabledCb" data-bind="checked: enabled(),  enable:expertMode(), click: $parent.toggleEnabledBtn"/></td>
-    <td><span data-bind="text: active"></span></td>
+    <td><span data-bind="text: active() ? 'Alarm' : 'Normal'"></span></td>
     <!--td><span data-bind="text: newalarm"></span></td-->	
     <td>
       <select data-bind="options: availableSP(), value: SP, enable:expertMode(), click: $parent.changeSPSel" style="width:100%"></select>

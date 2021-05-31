@@ -9,28 +9,29 @@
 </script>
 
 <div id="SafetyPrinter">
-<table style="width:100%">
-  <tr>
-    <td>Connection: <span data-bind="style: {color: connectionColor}"><strong data-bind="text: connection"></strong></span></td>
-    <td style="text-align: right;"><span data-bind="visible: notConnected"><button data-bind="click: connectBtn" class="btn">Connect</button></span></td>
-  </tr>	
+<table class="table table-hover SPTable" width="100%">
+  <colgroup>
+    <col width="60%">
+    <col width="10%">
+    <col width="30%">
+  </colgroup>
+  <tr data-bind="visible: notConnected">
+    <td>Status: <span data-bind="style: {color: connectionColor}"><strong data-bind="text: connection"></strong></span></td>
+    <td style="text-align: right" colspan="2"><span data-bind="visible: notConnected"><button data-bind="click: connectBtn" class="btn">Connect</button></span></td>
+  </tr> 
   <tr data-bind="hidden: notConnected">
     <td><span data-bind="style: {color: interlockColor}">Status: <strong data-bind="text: interlock"></strong></span></td>
-    <td style="text-align: right;"><span data-bind="visible: tripBtnVisible"><button data-bind="click: tripResetBtn" class="btn">Reset</button></span></td>
+    <td style="text-align: right" colspan="2"><span data-bind="visible: tripBtnVisible"><button data-bind="click: tripResetBtn" class="btn">Reset</button></span></td>
   </tr>
+  <tbody data-bind="foreach: spSensors">
+  <tr data-bind="visible: visible">  
+    <td><span data-bind="text: label"></span></td>
+    <td><i data-bind="class: active() ? 'fas fa-bell' : 'fas fa-check', style: {color: color}"></i></td>
+    <td><span data-bind="style: {color: color, 'font-weight': active() ? 'bold' : '' }, text: status"></span></td>    
+  </tr>
+</tbody>
 </table>
 <span data-bind="hidden: notConnected">
-<hr>
-</span>
-<!-- ko foreach: spSensors -->
-<div data-bind="visible: visible">
-<span data-bind="text: label"></span> : 
-<span data-bind="style: {color: color}"><strong data-bind="text: status"></strong></span>
-</div>
-<!-- /ko -->
-</table>
-<span data-bind="hidden: notConnected">
-<hr>
 <center><button onclick='SafetyPrinterEBConfirmClick()' class="btn btn-danger">Emergency STOP</button></center>
 </span>
 </div>
