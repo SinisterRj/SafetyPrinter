@@ -19,6 +19,8 @@
  * Changes:
  * 1) Defined limits for set point definition.
  * 2) Now EEPROM read uses the addr 0 as a version flag. If it is different from EEPROMVERSION (because new release changed EEPROM structure), the firmware will overwrite it.
+ * 3) Include command C5 to turn off the printer.
+ * 4) Commands and arguments are now case insensitive.
  * 
  * Version: 0.2.1
  * 05/26/2021
@@ -28,7 +30,6 @@
  * 3) 2 new serial commands: Remote shutdown and enable/disable sensors 
  * 4) Now it indicates Alarm even if the sensor is disabled (but not starts de trip)
  * 5) Included command <r4> to return firmware version and release date
- * 6) include command C5 to turn off the printer.
  * 
  */
 
@@ -41,7 +42,7 @@
 // Configuration
 
 #define InterlockRelayPin     6
-#define InterlockPolarity     LOW  //Change if you need to toggle the behavior of the interlock pin (if its HIGH it means that the [InterlockRelayPin] output will be LOW under normal conditions and HIGH when an interlock occurs)
+#define InterlockPolarity     HIGH  //Change if you need to toggle the behavior of the interlock pin (if its HIGH it means that the [InterlockRelayPin] output will be LOW under normal conditions and HIGH when an interlock occurs)
 
 #define ResetButtonPin        11
 #define AlarmLedPin           10
@@ -316,6 +317,7 @@ unsigned long alarmCounter = 0;
 int activeAlarmCount = 0;
 int numOfSensors = 0;
 tTimer interlockTimer, resetTimer, ledTimer;
+bool printerPowered = true;
 
 void setup() {
 
@@ -491,11 +493,11 @@ void recvCommandWithStartEndMarkers() {
   char rc;
   char receivedChars[NUMCHARS+1] = "";
   //String receivedStr;
-  char command[4] = {0};
-  char argument1[8] = {0};
-  char argument2[8] = {0};
-  char argument3[8] = {0};
-  char argument4[8] = {0};
+  char command[4] = "";
+  char argument1[8] = "";
+  char argument2[8] = "";
+  char argument3[8] = "";
+  char argument4[8] = "";
   boolean newData = false;
   int test = 0;
     
@@ -554,23 +556,23 @@ void recvCommandWithStartEndMarkers() {
       //Identifyes each command
       //Add here if you need to add new commands
       //Remember that the strcmp is case sensitive
-      if (strcmp(command,"c1") == 0 or strcmp(command,"C1") == 0) {
+      if (String(command).equalsIgnoreCase("c1")) {
         Cmd_c1();
-      } else if (strcmp(command,"c2") == 0 or strcmp(command,"C2") == 0) {
+      } else if (String(command).equalsIgnoreCase("c2")) {
         Cmd_c2();        
-      } else if (strcmp(command,"c3") == 0 or strcmp(command,"C3") == 0) {
+      } else if (String(command).equalsIgnoreCase("c3")) {
         Cmd_c3(argument1,argument2);   
-      } else if (strcmp(command,"c4") == 0 or strcmp(command,"C4") == 0) {
+      } else if (String(command).equalsIgnoreCase("c4")) {
         Cmd_c4(argument1,argument2);        
-      } else if (strcmp(command,"c5") == 0 or strcmp(command,"C5") == 0) {
+      } else if (String(command).equalsIgnoreCase("c5")) {
         Cmd_c5();      
-      } else if (strcmp(command,"c6") == 0 or strcmp(command,"C6") == 0) {
+      } else if (String(command).equalsIgnoreCase("c6")) {
         Cmd_c6(argument1);   
-      } else if (strcmp(command,"r1") == 0 or strcmp(command,"R1") == 0) {
+      } else if (String(command).equalsIgnoreCase("r1")) {
         Cmd_r1();
-      } else if (strcmp(command,"r2") == 0 or strcmp(command,"R2") == 0) {
+      } else if (String(command).equalsIgnoreCase("r2")) {
         Cmd_r2();
-      } else if (strcmp(command,"r3") == 0 or strcmp(command,"R3") == 0) {
+      } else if (String(command).equalsIgnoreCase("r3")) {
         Cmd_r3();
       } else if (strcmp(command,"r4") == 0 or strcmp(command,"R4") == 0) {
         Cmd_r4();
@@ -598,7 +600,11 @@ void ReturnError(int type, char text[8]){
 void Cmd_c1()
 {
    // Serial command to Reset trip condition
-   Serial.println(F("C1: Resseting interlocks."));
+   if (printerPowered) {
+      Serial.println(F("C1: Resseting interlocks."));
+   } else {
+      Serial.println(F("C1: Resseting interlocks but printer is powered OFF by <C6> command."));
+   }
    resetInterlock(false);
 }
 
@@ -612,13 +618,13 @@ void Cmd_c2()
 void Cmd_c3(char argument1[8], char argument2[8])
 {
    // Serial command to enable or dissable a sensor
-   if ((strcmp(argument1, "all") == 0)) {
-       if (strcmp(argument2, "on") == 0) {
+   if (String(argument1).equalsIgnoreCase("all")) {
+       if (String(argument2).equalsIgnoreCase("on")) {
           for (int i =0; i < numOfSensors; i++) { 
              sensors[i].enabled = 1;
           }   
           Serial.println(F("C3: ALL sensors are ENABLED.")); 
-       } else if (strcmp(argument2, "off") == 0) {
+       } else if (String(argument2).equalsIgnoreCase("off")) {
           for (int i =0; i < numOfSensors; i++) { 
              sensors[i].enabled = 0;
              sensors[i].active = 0;
@@ -628,10 +634,10 @@ void Cmd_c3(char argument1[8], char argument2[8])
    } else {
      int index = atoi(argument1);
      if (index >= 0 and index < numOfSensors) {
-       if (strcmp(argument2, "on") == 0) {
+       if (String(argument2).equalsIgnoreCase("on")) {
           sensors[index].enabled = 1;   
           Serial.println("C3: Sensor: " + sensors[index].label + " is ENABLED."); 
-       } else if (strcmp(argument2, "off") == 0) {
+       } else if (String(argument2).equalsIgnoreCase("off")) {
           sensors[index].enabled = 0;
           sensors[index].active = 0;
           Serial.println("C3: Sensor: " + sensors[index].label + " is DISABLED.");  
@@ -682,11 +688,11 @@ void Cmd_c5()
 
 void Cmd_c6(char argument1[8])
 {
-    if (strcmp(argument1, "off") == 0) {
+    if (String(argument1).equalsIgnoreCase("off")) {
       // Turns off printer
       turnOnOff(false);
       Serial.println("C6: Printer turned OFF.");  
-    } else if (strcmp(argument1, "on") == 0) {
+    } else if (String(argument1).equalsIgnoreCase("on")) {
        // Turns on printer
        if (!interlockStatus) {
          turnOnOff(true);
@@ -874,8 +880,10 @@ void interlock(bool useTimer, int interlockDelay) {
 void turnOnOff(bool on) {
    // Change the output [InterlockRelayPin]. Diffenret as interlock() because it don't change internal status flags to enable a simple turn on/off.
    if (on && !interlockStatus){
+      printerPowered = true;
       digitalWrite(InterlockRelayPin,!InterlockPolarity);
    } else {
+      printerPowered = false;
       digitalWrite(InterlockRelayPin,InterlockPolarity);
    }   
 }
@@ -895,7 +903,9 @@ void resetInterlock(bool useTimer) {
    if (resetFlag) {
       interlockStatus = false;
       interlockStatusChanged = true;
-      digitalWrite(InterlockRelayPin,!InterlockPolarity);
+      if (printerPowered) { 
+        digitalWrite(InterlockRelayPin,!InterlockPolarity);
+      }
    }
 }
 
