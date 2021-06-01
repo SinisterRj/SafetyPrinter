@@ -37,7 +37,7 @@ $(function() {
         self.settingsViewModel = parameters[0];
         
         // Sidebar variables
-        self.interlock = ko.observable();
+        self.interlock = ko.observable("Normal");
         self.interlockColor = ko.observable();
         self.tripBtnVisible = ko.observable();
 
@@ -63,6 +63,8 @@ $(function() {
         self.notConnected = ko.observable(true);
         self.connectedPort = ko.observable("None");
         self.connectionCaption = ko.observable("Connect");
+        self.automaticShutdownEnabled = ko.observable();
+        self.newTrip = ko.observable(false);
 
         self.spSensors = ko.observableArray([
            new spSensorsType(false,"","offline","gray","0",false,false,"0","0",[],false),
@@ -73,7 +75,63 @@ $(function() {
            new spSensorsType(false,"","offline","gray","0",false,false,"0","0",[],false),
            new spSensorsType(false,"","offline","gray","0",false,false,"0","0",[],false),
            new spSensorsType(false,"","offline","gray","0",false,false,"0","0",[],false)
-        ]); 
+        ]);
+
+        PNotify.prototype.options.confirm.buttons = [];
+
+        self.tripPopupText = gettext('Printer Emergency Shutdown detected.');
+        self.tripPopupOptions = {
+            title: gettext('Shutdown'), 
+            type: 'error',           
+            icon: true,
+            hide: false,
+            confirm: {
+                confirm: true,
+                buttons: [{
+                    text: 'Ok',
+                    addClass: 'btn-block',
+                    promptTrigger: true,
+                    click: function(notice, value){
+                        notice.remove();
+                        notice.get().trigger("pnotify.cancel", [notice, value]);
+                    }
+                }]
+            },
+            buttons: {
+                closer: false,
+                sticker: false,
+            },
+            history: {
+                history: false
+            }
+        };
+
+        self.timeoutPopupText = gettext('Shutting down in ');
+        self.timeoutPopupOptions = {
+            title: gettext('System Shutdown'),
+            type: 'notice',
+            icon: true,
+            hide: false,
+            confirm: {
+                confirm: true,
+                buttons: [{
+                    text: 'Abort Shutdown',
+                    addClass: 'btn-block btn-danger',
+                    promptTrigger: true,
+                    click: function(notice, value){
+                        notice.remove();
+                        notice.get().trigger("pnotify.cancel", [notice, value]);
+                    }
+                }]
+            },
+            buttons: {
+                closer: false,
+                sticker: false,
+            },
+            history: {
+                history: false
+            }
+        };
 
         self.onStartupComplete = function() {
             // Update serial ports info. Also called when user clicks on "default Serial" combo box
@@ -189,6 +247,15 @@ $(function() {
 
         };
 
+        self.onAutomaticShutdownEvent = function() {
+            if (self.automaticShutdownEnabled()) {
+                OctoPrint.simpleApiCommand("SafetyPrinter", "enableShutdown");
+            } else {
+                OctoPrint.simpleApiCommand("SafetyPrinter", "disableShutdown");
+            }
+        }
+        self.automaticShutdownEnabled.subscribe(self.onAutomaticShutdownEvent, self);
+
         // ************* Functions for general buttons:
 
         self.connectBtn = function() {
@@ -287,7 +354,28 @@ $(function() {
 
                     self.navbarcolor("green");
                     self.navbartitle("Safety Printer: Normal operation");
+                    if (typeof self.tripPopup != "undefined") {
+                        self.tripPopup.remove();
+                        self.tripPopup = undefined;
+                    }
                 } else {
+                    activeSensors = "";
+                    self.tripPopupOptions.text = self.tripPopupText;
+                    for (i = 0; i < 8; i++) {                                         
+                        if (self.spSensors()[i].active() && self.spSensors()[i].enabled()){
+                            activeSensors = activeSensors + "\n" + String(self.spSensors()[i].label());                                                                       
+                        }   
+                    }
+                    if (activeSensors != "") {
+                        self.tripPopupOptions.text = self.tripPopupText + " Active sensors:" + activeSensors;                      
+                    }
+                    if (typeof self.tripPopup != "undefined") {
+                        self.tripPopup.update(self.tripPopupOptions);
+                    } else {
+                        self.tripPopup = new PNotify(self.tripPopupOptions);
+                        self.tripPopup.get().on('pnotify.cancel');
+                    }
+
                     self.interlock("TRIP");
                     self.interlockColor("red");
                     self.tripBtnVisible(true);
@@ -350,7 +438,30 @@ $(function() {
                     self.scrollToEnd();
                 }
             }
+            else if (data.type == "shutdown") {
+                self.automaticShutdownEnabled(data.automaticShutdownEnabled);
+                if ((data.timeout_value != null) && (data.timeout_value > 0)) {
+                    self.timeoutPopupOptions.text = self.timeoutPopupText + data.timeout_value;
+                    if (typeof self.timeoutPopup != "undefined") {
+                        self.timeoutPopup.update(self.timeoutPopupOptions);
+                    } else {
+                        self.timeoutPopup = new PNotify(self.timeoutPopupOptions);
+                        self.timeoutPopup.get().on('pnotify.cancel', function() {self.abortShutdown(true);});
+                    }
+                } else {
+                    if (typeof self.timeoutPopup != "undefined") {
+                        self.timeoutPopup.remove();
+                        self.timeoutPopup = undefined;
+                    }
+                }
+            }
         };
+        
+        self.abortShutdown = function(abortShutdownValue) {
+            self.timeoutPopup.remove();
+            self.timeoutPopup = undefined;
+            OctoPrint.simpleApiCommand("SafetyPrinter", "abortShutdown");
+        }
     }
 
     OCTOPRINT_VIEWMODELS.push({

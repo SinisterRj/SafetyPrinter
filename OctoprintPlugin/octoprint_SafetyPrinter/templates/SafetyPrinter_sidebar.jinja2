@@ -9,6 +9,13 @@
 </script>
 
 <div id="SafetyPrinter">
+<div class="input-group">
+  <label class="checkbox">
+    <input type="checkbox" data-bind="checked: automaticShutdownEnabled">
+    {{ _('Shutdown after print finishes') }}
+  </label>
+</div>
+
 <table class="table table-hover SPTable" width="100%">
   <colgroup>
     <col width="60%">

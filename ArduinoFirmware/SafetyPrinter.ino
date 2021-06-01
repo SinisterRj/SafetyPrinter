@@ -28,6 +28,7 @@
  * 3) 2 new serial commands: Remote shutdown and enable/disable sensors 
  * 4) Now it indicates Alarm even if the sensor is disabled (but not starts de trip)
  * 5) Included command <r4> to return firmware version and release date
+ * 6) include command C5 to turn off the printer.
  * 
  */
 
@@ -563,6 +564,8 @@ void recvCommandWithStartEndMarkers() {
         Cmd_c4(argument1,argument2);        
       } else if (strcmp(command,"c5") == 0 or strcmp(command,"C5") == 0) {
         Cmd_c5();      
+      } else if (strcmp(command,"c6") == 0 or strcmp(command,"C6") == 0) {
+        Cmd_c6(argument1);   
       } else if (strcmp(command,"r1") == 0 or strcmp(command,"R1") == 0) {
         Cmd_r1();
       } else if (strcmp(command,"r2") == 0 or strcmp(command,"R2") == 0) {
@@ -675,6 +678,25 @@ void Cmd_c5()
       EEPROM.update(4 + (i*2), sensors[i].alarmSP & 0xFF);
    }
    Serial.println("C5: EEPROM updated.");   
+}
+
+void Cmd_c6(char argument1[8])
+{
+    if (strcmp(argument1, "off") == 0) {
+      // Turns off printer
+      turnOnOff(false);
+      Serial.println("C6: Printer turned OFF.");  
+    } else if (strcmp(argument1, "on") == 0) {
+       // Turns on printer
+       if (!interlockStatus) {
+         turnOnOff(true);
+         Serial.println("C6: Printer turned ON.");  
+       } else {
+         Serial.println("C6: Can't turn printer ON with INTERLOCK status ON.");
+       }
+    } else {
+          ReturnError(1,argument1);
+    }
 }
 
 void Cmd_r1()
@@ -847,6 +869,15 @@ void interlock(bool useTimer, int interlockDelay) {
        digitalWrite(InterlockRelayPin,InterlockPolarity);
        digitalWrite(TripLedPin, HIGH); 
     }   
+}
+
+void turnOnOff(bool on) {
+   // Change the output [InterlockRelayPin]. Diffenret as interlock() because it don't change internal status flags to enable a simple turn on/off.
+   if (on && !interlockStatus){
+      digitalWrite(InterlockRelayPin,!InterlockPolarity);
+   } else {
+      digitalWrite(InterlockRelayPin,InterlockPolarity);
+   }   
 }
 
 void resetInterlock(bool useTimer) {

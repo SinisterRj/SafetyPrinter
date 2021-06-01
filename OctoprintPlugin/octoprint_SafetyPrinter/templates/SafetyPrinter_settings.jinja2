@@ -1,14 +1,65 @@
 <h3>Configuration for Safety Printer</h3>
-<h4>General info:</h3>
+<h4>Serial connection:</h3>
 <p>
 <table class="SPtable-noborder">
-<tr><td width="30%"> 
-Connection:</td><td><span data-bind="style: {color: connectionColor}"><strong data-bind="text: connection"></strong></span>
-</td><td><button data-bind="click: connectBtn, text: connectionCaption" class="btn"></button></td></tr>
-<tr><td width="30%">Actual Serial Port: </td><td><span data-bind="text: connectedPort"></span></td><td></td></tr>
-<tr><td width="30%">Default Serial Port:</td><td><select data-bind="options: availablePorts, optionsText: 'name', optionsValue: 'name', value: settingsViewModel.settings.plugins.SafetyPrinter.serialport, valueAllowUnset: true, click: onStartupComplete"></select></td><td></td></tr>
+    <tr>
+        <td width="30%"> 
+            Connection:
+        </td><td>
+            <span data-bind="style: {color: connectionColor}"><strong data-bind="text: connection"></strong></span>
+        </td><td>
+            <button data-bind="click: connectBtn, text: connectionCaption" class="btn"></button>
+        </td>
+    </tr>
+    <tr>
+        <td width="30%">
+            Actual Serial Port: 
+        </td><td>
+            <span data-bind="text: connectedPort"></span>
+        </td><td></td>
+    </tr>
+    <tr>
+        <td width="30%">
+            Default Serial Port:
+        </td><td>
+            <select data-bind="options: availablePorts, optionsText: 'name', optionsValue: 'name', value: settingsViewModel.settings.plugins.SafetyPrinter.serialport, valueAllowUnset: true, click: onStartupComplete"></select>
+        </td><td></td>
+    </tr>
 </table>
 </p>
+<h4>Shutdown after print:</h4>
+<small>Modified from: AutomaticShutdown plug-in by Nicanor Romero Venier, https://github.com/OctoPrint/OctoPrint-AutomaticShutdown.</small></br>
+<table class="SPtable-noborder">
+    <tr><td width="30%">
+            <label class="control-label">Abort Timeout</label>
+        </td>
+        <td>
+            <div class="input-append">
+                <input type="number" class="input-mini text-right" data-bind="value: settingsViewModel.settings.plugins.SafetyPrinter.abortTimeout">
+                <span class="add-on">sec</span>
+            </div>    
+        </td>
+    </tr>
+    <tr>
+        <td></td><td>
+            <div class="controls">
+                <label class="checkbox">
+                <input type="checkbox" data-bind="checked: settingsViewModel.settings.plugins.SafetyPrinter.turnOffPrinter"> Turn off printer before shutdown.
+                </label>
+            </div>
+        </td>
+    </tr>
+    <tr>
+        <td></td><td>
+            <div class="controls">
+                <label class="checkbox">
+                <input type="checkbox" data-bind="checked: settingsViewModel.settings.plugins.SafetyPrinter.rememberCheckBox"> Save the value of "Shutdown after print finishes".
+                </label>
+            </div>
+        </td>
+    </tr>
+</table>    
+
 <h4>Sensor data:</h3>
 <table class="table table-bordered table-hover SPTable">
   <thead>
