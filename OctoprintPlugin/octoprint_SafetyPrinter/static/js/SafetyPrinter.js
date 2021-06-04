@@ -5,7 +5,20 @@
  * License: AGPLv3
  */
 $(function() {
-    function spSensorsType(visible, label, status, color, actualvalue, enabled, active, type, SP, availableSP, expertMode) {
+    function spSensorsType(visible, label, status, color, enabled, active, type, SP, timer) {
+        var self = this;
+        self.visible = ko.observable(visible);
+        self.label = ko.observable(label);
+        self.status = ko.observable(status);
+        self.color = ko.observable(color);
+        self.enabled = ko.observable(enabled);
+        self.active = ko.observable(active);
+        self.type = ko.observable(type);
+        self.SP = ko.observable(SP);
+        self.timer = ko.observable(timer);
+    }
+
+    function spSensorsSettingsType(visible, label, status, color, actualvalue, enabled, active, type, SP, timer, availableSP, expertMode) {
         var self = this;
         self.visible = ko.observable(visible);
         self.label = ko.observable(label);
@@ -16,6 +29,7 @@ $(function() {
         self.active = ko.observable(active);
         self.type = ko.observable(type);
         self.SP = ko.observable(SP);
+        self.timer = ko.observable(timer);
         self.availableSP = ko.observableArray(availableSP);
         self.expertMode = ko.observable(expertMode)
     }
@@ -41,6 +55,17 @@ $(function() {
         self.interlockColor = ko.observable();
         self.tripBtnVisible = ko.observable();
 
+        self.spSensors = ko.observableArray([
+           new spSensorsType(false,"","offline","gray",false,false,"0","0","0"),
+           new spSensorsType(false,"","offline","gray",false,false,"0","0","0"),
+           new spSensorsType(false,"","offline","gray",false,false,"0","0","0"),
+           new spSensorsType(false,"","offline","gray",false,false,"0","0","0"),
+           new spSensorsType(false,"","offline","gray",false,false,"0","0","0"),
+           new spSensorsType(false,"","offline","gray",false,false,"0","0","0"),
+           new spSensorsType(false,"","offline","gray",false,false,"0","0","0"),
+           new spSensorsType(false,"","offline","gray",false,false,"0","0","0")
+        ]);
+
         // Settings variables
         self.autoscrollEnabled = ko.observable(true);
         self.expertMode = ko.observable(false);
@@ -49,9 +74,19 @@ $(function() {
         self.countTerminalLines = 0;
         self.command = ko.observable();
         self.tabActive = false;
-        self.oldSP = ["0","0","0","0","0","0","0","0"];
         self.tempMsgFilter = ko.observable(false);
         self.startedFilter = false;
+
+        self.spSensorsSettings = ko.observableArray([
+           new spSensorsSettingsType(false,"","offline","gray","0",false,false,"0","0","0",[],false),
+           new spSensorsSettingsType(false,"","offline","gray","0",false,false,"0","0","0",[],false),
+           new spSensorsSettingsType(false,"","offline","gray","0",false,false,"0","0","0",[],false),
+           new spSensorsSettingsType(false,"","offline","gray","0",false,false,"0","0","0",[],false),
+           new spSensorsSettingsType(false,"","offline","gray","0",false,false,"0","0","0",[],false),
+           new spSensorsSettingsType(false,"","offline","gray","0",false,false,"0","0","0",[],false),
+           new spSensorsSettingsType(false,"","offline","gray","0",false,false,"0","0","0",[],false),
+           new spSensorsSettingsType(false,"","offline","gray","0",false,false,"0","0","0",[],false)
+        ]);
 
         // Navbar variables
         self.navbarcolor = ko.observable("black");
@@ -65,17 +100,7 @@ $(function() {
         self.connectionCaption = ko.observable("Connect");
         self.automaticShutdownEnabled = ko.observable();
         self.newTrip = ko.observable(false);
-
-        self.spSensors = ko.observableArray([
-           new spSensorsType(false,"","offline","gray","0",false,false,"0","0",[],false),
-           new spSensorsType(false,"","offline","gray","0",false,false,"0","0",[],false),
-           new spSensorsType(false,"","offline","gray","0",false,false,"0","0",[],false),
-           new spSensorsType(false,"","offline","gray","0",false,false,"0","0",[],false),
-           new spSensorsType(false,"","offline","gray","0",false,false,"0","0",[],false),
-           new spSensorsType(false,"","offline","gray","0",false,false,"0","0",[],false),
-           new spSensorsType(false,"","offline","gray","0",false,false,"0","0",[],false),
-           new spSensorsType(false,"","offline","gray","0",false,false,"0","0",[],false)
-        ]);
+        self.numOfSensors = 0;
 
         PNotify.prototype.options.confirm.buttons = [];
 
@@ -193,6 +218,66 @@ $(function() {
             }
         };
 
+        // ************* Update Settings TAB:
+
+        self.onSettingsShown = function() {
+            for (i = 0; i < self.numOfSensors; i++) {
+                                                    
+                self.spSensorsSettings()[i].visible(self.spSensors()[i].visible());
+                self.spSensorsSettings()[i].visible.valueHasMutated();   //Force knockout to refresh View
+
+                self.spSensorsSettings()[i].type(self.spSensors()[i].type());
+                self.spSensorsSettings()[i].type.valueHasMutated();
+
+                self.spSensorsSettings()[i].enabled(self.spSensors()[i].enabled());
+                self.spSensorsSettings()[i].enabled.valueHasMutated();
+                
+                self.spSensorsSettings()[i].active(self.spSensors()[i].active());
+                self.spSensorsSettings()[i].active.valueHasMutated();
+
+                self.spSensorsSettings()[i].SP(self.spSensors()[i].SP());
+                self.spSensorsSettings()[i].SP.valueHasMutated();
+
+                self.spSensorsSettings()[i].timer(self.spSensors()[i].timer());
+                self.spSensorsSettings()[i].timer.valueHasMutated();                
+            }            
+        };
+
+        self.onSettingsBeforeSave = function() {
+            changed = false;
+            for (i = 0; i < self.numOfSensors; i++) {                                         
+
+                if (self.spSensorsSettings()[i].enabled() != self.spSensors()[i].enabled()) {
+                    if (self.spSensorsSettings()[i].enabled()) {
+                        console.log("Enabling: " + self.spSensorsSettings()[i].label())
+                        OctoPrint.simpleApiCommand("SafetyPrinter", "toggleEnabled", {id: i, onoff: "on"});
+                        changed = true;
+                    } else {
+                        console.log("Disabling: " + self.spSensorsSettings()[i].label())
+                        OctoPrint.simpleApiCommand("SafetyPrinter", "toggleEnabled", {id: i, onoff: "off"});
+                        changed = true;
+                    }                    
+                }
+
+                if (self.spSensorsSettings()[i].SP() != self.spSensors()[i].SP()) {
+                    console.log("Changing SP: " + self.spSensorsSettings()[i].label())
+                    OctoPrint.simpleApiCommand("SafetyPrinter", "changeSP", {id: i, newSP: self.spSensorsSettings()[i].SP()});
+                    changed = true;
+                }
+
+                if (self.spSensorsSettings()[i].timer() != self.spSensors()[i].timer()) {
+                    console.log("Changing Timer: " + self.spSensorsSettings()[i].label())
+                    OctoPrint.simpleApiCommand("SafetyPrinter", "changeTimer", {id: i, newTimer: self.spSensorsSettings()[i].timer()});
+                    changed = true;
+                }
+            }
+            if (changed) {
+                console.log("Writing EEPROM")
+                OctoPrint.simpleApiCommand("SafetyPrinter", "saveEEPROM");  
+            }
+
+        }
+
         // ************* Functions for each button on Settings TAB:
 
         self.toggleAutoscrollBtn = function() {
@@ -207,34 +292,12 @@ $(function() {
         self.toggleFilterBtn = function() {
             // enable or disable <R1> messages on terminal
             self.tempMsgFilter(!self.tempMsgFilter());
-        }
+        };
 
         self.sendCommandBtn = function() {
             // Send generic user comands from command line to arduino
             OctoPrint.simpleApiCommand("SafetyPrinter", "sendCommand", {serialCommand: self.command()}); 
-        }
-
-        self.toggleEnabledBtn = function(item) {
-            // Send a command to arduino to enable or disable any specific sensor
-            if (self.spSensors()[self.spSensors.indexOf(item)].enabled()) {
-                OctoPrint.simpleApiCommand("SafetyPrinter", "toggleEnabled", {id: self.spSensors.indexOf(item), onoff: "off"});
-            } else {
-                OctoPrint.simpleApiCommand("SafetyPrinter", "toggleEnabled", {id: self.spSensors.indexOf(item), onoff: "on"});
-            }
         };
-
-        self.changeSPSel = function(item) {
-            // Send a command to arduino to change a specific sensor alarm set point
-            if (self.oldSP[self.spSensors.indexOf(item)] != self.spSensors()[self.spSensors.indexOf(item)].SP()) {
-                //Avoid to send the command if the user just clicks on the selector, but select the same SP.
-                OctoPrint.simpleApiCommand("SafetyPrinter", "changeSP", {id: self.spSensors.indexOf(item), newSP: self.spSensors()[self.spSensors.indexOf(item)].SP()});
-            }
-        };
-
-        self.saveEEPROMBtn = function() {
-            // Send a command to arduino to write changes on "enable" and "set point" sensor properties on EEPROM
-            OctoPrint.simpleApiCommand("SafetyPrinter", "saveEEPROM");  
-        }
 
         // ************* Functions for each button on Sidebar:
 
@@ -280,15 +343,17 @@ $(function() {
             if (plugin != "SafetyPrinter") {
                 return;
             }
-            //console.log(data.type);
 
             if ((data.type == "statusUpdate") && (self.notConnected() == false)) {
             // Update all sensors status
                 var i = parseInt(data.sensorIndex);
+                self.numOfSensors = parseInt(data.sensorNumber);
                 if (i >=0 || i < 8) {
                                         
-                    self.spSensors()[i].visible(true);                    
+                    self.spSensors()[i].visible(true);
+                    self.spSensorsSettings()[i].visible(true);                    
                     self.spSensors()[i].label(data.sensorLabel);
+                    self.spSensorsSettings()[i].label(data.sensorLabel);
                     if (data.sensorEnabled == "1") {
                         self.spSensors()[i].enabled(true);    
                         //console.log(Math.floor(Math.random() * 101) + ":Index:" + i + " , Label:" + data.sensorLabel + " , Enabled: True - " + self.spSensors()[i].enabled());
@@ -296,27 +361,28 @@ $(function() {
                         self.spSensors()[i].enabled(false); 
                         //console.log(Math.floor(Math.random() * 101) + ":Index:" + i + " , Label:" + data.sensorLabel + " , Enabled: False - " + self.spSensors()[i].enabled());
                     }
-                    self.spSensors()[i].actualvalue(data.sensorActualValue);
+                    self.spSensorsSettings()[i].actualvalue(data.sensorActualValue);
                     if (data.sensorActive == "1") {
-                        self.spSensors()[i].active(true);    
+                        self.spSensors()[i].active(true); 
+                        self.spSensorsSettings()[i].active(true);   
                     } else {
-                        self.spSensors()[i].active(false); 
+                        self.spSensors()[i].active(false);
+                        self.spSensorsSettings()[i].active(false);    
                     }
                     if (data.sensorType == "0") {
                         self.spSensors()[i].type("Digital");
-                        if (self.spSensors()[i].availableSP().length == 0) {
-                            self.spSensors()[i].availableSP.push(0,1);    
+                        if (self.spSensorsSettings()[i].availableSP().length == 0) {
+                            self.spSensorsSettings()[i].availableSP.push(0,1);    
                         }                        
                     } else if (data.sensorType == "1") {
                         self.spSensors()[i].type("NTC Temperature"); 
-                        if (self.spSensors()[i].availableSP().length == 0) {
-                            self.spSensors()[i].availableSP.push(0,50,100,150,200,210,220,230,240,250,260,270,280,290,300);
+                        if (self.spSensorsSettings()[i].availableSP().length == 0) {
+                            self.spSensorsSettings()[i].availableSP.push(0,50,100,150,200,210,220,230,240,250,260,270,280,290,300);
                         }
                     }
                     self.spSensors()[i].SP(data.sensorSP);
-                    self.oldSP[i] = data.sensorSP; 
-                    self.spSensors()[i].expertMode(self.expertMode);
-                    //statusStr = data.sensorActualValue;
+                    self.spSensors()[i].timer(data.sensorTimer);
+                    
                     if (data.sensorType == "1") {
                         //NTC sensor
                         statusStr = data.sensorActualValue + "°C "
@@ -333,7 +399,6 @@ $(function() {
                         }                        
                     } else {
                         if(data.sensorEnabled == "1") {
-                            //statusStr += "OK";
                             colorStr = "green";
                         } else {
                             statusStr += "(Disabled)";
@@ -361,7 +426,7 @@ $(function() {
                 } else {
                     activeSensors = "";
                     self.tripPopupOptions.text = self.tripPopupText;
-                    for (i = 0; i < 8; i++) {                                         
+                    for (i = 0; i < self.numOfSensors; i++) {                                         
                         if (self.spSensors()[i].active() && self.spSensors()[i].enabled()){
                             activeSensors = activeSensors + "\n" + String(self.spSensors()[i].label());                                                                       
                         }   
@@ -405,8 +470,9 @@ $(function() {
                     self.navbartitle("Safety Printer: Offline");
 
                     var i;
-                    for (i = 0; i < 8; i++) {                                         
-                        self.spSensors()[i].visible(false);   
+                    for (i = 0; i < self.numOfSensors; i++) {                                         
+                        self.spSensors()[i].visible(false);
+                        self.spSensorsSettings()[i].visible(false);   
                     }
                 }
             }

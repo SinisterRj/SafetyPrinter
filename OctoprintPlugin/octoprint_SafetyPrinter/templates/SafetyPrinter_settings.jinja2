@@ -64,28 +64,32 @@
 <table class="table table-bordered table-hover SPTable">
   <thead>
   <tr>
-    <th style="width:40%">Label:</th>
+    <th style="width:30%">Label:</th>
     <th style="width:19%">Type:</th>
-    <th style="width:8%">Enable:</th>
-    <th style="width:8%">Status:</th>
-    <th style="width:15%">Set Point:</th>
-    <th style="width:10%">Actual Value:</th>
+    <th style="width:7%">Enable:</th>
+    <th style="width:7%">Status:</th>
+    <th style="width:14%">Set Point:</th>
+    <th style="width:14%">Timer:</th>
+    <th style="width:9%">Actual Value:</th>
   </tr>
   </thead>
-  <tbody data-bind="foreach: spSensors">
+  <tbody data-bind="foreach: spSensorsSettings">
   <tr data-bind="visible: visible">  
     <td><span data-bind="text: label"></span></td>
     <td><span data-bind="text: type"></span></td>
-    <td><input type="checkbox" value="EnabledCb" data-bind="checked: enabled(),  enable:expertMode(), click: $parent.toggleEnabledBtn"/></td>
+    <td><input type="checkbox" value="EnabledCb" data-bind="checked: enabled, enable: $parent.expertMode()"/></td>
     <td><span data-bind="text: active() ? 'Alarm' : 'Normal'"></span></td>
     <!--td><span data-bind="text: newalarm"></span></td-->	
     <td>
-      <select data-bind="options: availableSP(), value: SP, enable:expertMode(), click: $parent.changeSPSel" style="width:100%"></select>
+      <select data-bind="options: availableSP(), value: SP, enable: $parent.expertMode()" style="width:100%"></select>
+    </td>
+    <td>
+        <input type="number" class="input-mini text-right" data-bind="value: timer, enable: $parent.expertMode()"> 
     </td>
     <td><span data-bind="text: actualvalue"></span></td>    
   </tr>
 </tbody>
-<tr><td colspan="6" style="text-align: right"><button data-bind="click: saveEEPROMBtn, enable:expertMode()" class="btn btn-primary">Save to EEPROM</button></td></tr>
+
 </table>
 
 <h3>Advanced</h3>

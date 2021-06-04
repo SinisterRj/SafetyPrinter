@@ -6,7 +6,9 @@ import threading
 import serial
 import serial.tools.list_ports
 import time
-#import termios
+
+if ((sys.platform == 'linux') or (sys.platform =='linux2')):
+    import termios
 
 class Connection():
     def __init__(self, plugin):
@@ -27,6 +29,7 @@ class Connection():
         self.sensorActualValue = []
         self.sensorType = []
         self.sensorSP = []
+        self.sensorTimer = []
         self.sensorSpare1 = []
         self.sensorSpare2 = []
         self.sensorSpare3 = []
@@ -79,12 +82,24 @@ class Connection():
                 self.terminal("Couldn't connect on any port.","ERROR",True)
                 self.update_ui_connection_status()
             else:
-                time.sleep(2.00) # wait for arduino boot
-                responseStr = self.serialConn.readline()
-                responseStr = responseStr.decode()
+                self.terminal("Waiting Safety Printer MCU answer...","Info",True)
+                responseStr = self.serialConn.readline().decode()
+                self.terminal(responseStr,"Info",True)
+                i = 0
+                while responseStr.find("Safety Printer MCU") == -1: # Wait for arduino boot and answer
+                    i += 1                    
+                    time.sleep(0.50)
+                    responseStr = self.serialConn.readline().decode() 
+                    self.terminal(responseStr,"Info",True)   
+                    if i > 20:
+                        self.terminal("Safety Printer MCU connection error.","Error",True)
+                        self.closeConnection()
+                        return
+
                 self.terminal("Safety Printer MCU connected: " + str(responseStr[0:-4]),"Info",True)
                 
-                responseStr = self.send_command("<R4>",True)
+                responseStr = self.newSerialCommand("<R4>")
+                self.terminal(responseStr,"Info",True);
                 vpos1 = responseStr.find(':',0)
                 vpos2 = responseStr.find(',',vpos1)
                 connectedVersion = responseStr[vpos1+1:vpos2]
@@ -192,7 +207,7 @@ class Connection():
             
             responseStr = self.send_command("<R1>",False) 
 
-            if ((responseStr == "error") or (not(isinstance(responseStr, str)))):
+            if ((responseStr == "Error") or (not(isinstance(responseStr, str)))):
                 return
 
             numhash = responseStr.count('#')
@@ -235,6 +250,9 @@ class Connection():
                     self.sensorSP[index] = responseStr[vpos1:vpos2]
                     vpos1 = vpos2 + 1
                     vpos2 = responseStr.find(',',vpos1)
+                    self.sensorTimer[index] = responseStr[vpos1:vpos2]
+                    vpos1 = vpos2 + 1
+                    vpos2 = responseStr.find(',',vpos1)
                     self.sensorSpare1[index] = responseStr[vpos1:vpos2]
                     vpos1 = vpos2 + 1
                     vpos2 = responseStr.find(',',vpos1)
@@ -246,7 +264,7 @@ class Connection():
 
                     self.lastStatus[index] = self.sensorActive[index]
                     #self._logger.info("Index: " + str(index) + " Label:" + str(self.sensorLabel[index]) + " Enabled:" + str(self.sensorEnabled[index]) + " Active:" + str(self.sensorActive[index]) + " ActualValue:" + str(self.sensorActualValue[index]))
-                    self._plugin_manager.send_plugin_message(self._identifier, {"type": "statusUpdate", "sensorIndex": index, "sensorLabel": self.sensorLabel[index], "sensorEnabled": self.sensorEnabled[index], "sensorActive": self.sensorActive[index], "sensorActualValue": self.sensorActualValue[index], "sensorType": self.sensorType[index], "sensorSP": self.sensorSP[index]})
+                    self._plugin_manager.send_plugin_message(self._identifier, {"type": "statusUpdate", "sensorIndex": index, "sensorNumber": totalSensors, "sensorLabel": self.sensorLabel[index], "sensorEnabled": self.sensorEnabled[index], "sensorActive": self.sensorActive[index], "sensorActualValue": self.sensorActualValue[index], "sensorType": self.sensorType[index], "sensorSP": self.sensorSP[index], "sensorTimer": self.sensorTimer[index]})
         else :
             self.update_ui_connection_status()
 
@@ -254,7 +272,7 @@ class Connection():
         # Update local arrays with sensor labels and type. create items for all the other properties. Should run just after connection, only one time or when the number of sensor status sended by arduino changes
         responseStr = self.send_command("<R2>",False)
         
-        if ((responseStr == "error") or (not(isinstance(responseStr, str)))):
+        if ((responseStr == "Error") or (not(isinstance(responseStr, str)))):
                 return
         
         numhash = responseStr.count('#')
@@ -291,6 +309,7 @@ class Connection():
                 self.sensorActive.append("")
                 self.sensorActualValue.append("")
                 self.sensorSP.append("")
+                self.sensorTimer.append("")
                 self.sensorSpare1.append("")
                 self.sensorSpare3.append("")
             else :
@@ -310,6 +329,7 @@ class Connection():
                 self.sensorActive[index] = ""
                 self.sensorActualValue[index] = ""
                 self.sensorSP[index] = ""
+                self.sensorTimer[index] = ""
                 self.sensorSpare1[index] = ""
                 self.sensorSpare3[index] = ""
 
@@ -327,57 +347,63 @@ class Connection():
 
     # ****************************************** Functions to interact with Arduino when connected
 
+    def newSerialCommand(self,serialCommand):
+        i = 0
+        responseStr = self.send_command(serialCommand,True)
+        while responseStr == "Error":
+            time.sleep(0.2)
+            i += 1
+            responseStr = self.send_command(serialCommand,True)
+            if i > 0:
+                self._logger.info("Serial Port Busy")
+            if i > 20:
+                self.closeConnection()
+                break
+        return responseStr
+
     def send_command(self, command, log):
         # send serial commands to arduino and receives the answer
+
         if self.is_connected():
-            tries = 0
-
-            for x in range(3):
-                try:
-                    tries += 1
-                    self.serialConn.flush()
-                    self.terminal(command.strip(), "Send", False) 
-                    
-                    if not self.waitingResponse and self.is_connected():
-                        self.serialConn.write(command.encode())
-                    else:
-                        return "error"
-                    
-                    self.waitingResponse = True                    
-                    data = ""
-                    keepReading = True
-
-                    while keepReading:
-                        time.sleep(0.05)
-                        if self.is_connected():
-                            newline = self.serialConn.readline()
-                        if not newline.strip():
-                            keepReading = False
-                        else:
-                            data += newline.decode()
-
-                    if data: 
-                        self.terminal(data.strip(), "Recv", False) 
-
-                        if str(data[0:len(command)-2]) == command[1:-1]:
-                            self.waitingResponse = False
-                            return str(data)
-
-                        break
+            try:
+                self.serialConn.flush()
+                self.terminal(command.strip(), "Send", False) 
                 
-                except (serial.SerialException, termios.error):
-                    self.waitingResponse = False
-                    self._logger.error("Safety Printer communication error.")
-                    self.closeConnection()                    
-                    return "error"
+                if not self.waitingResponse and self.is_connected():
+                    self.serialConn.write(command.encode())
+                else:
+                    return "Error"
+                
+                
+                self.waitingResponse = True                    
+                data = ""
+                keepReading = True
 
-                if tries >= 3:
-                    self.waitingResponse = False
-                    self._logger.error("Safety Printer communication error.")
-                    self.closeConnection()                    
-                    return "error"
+                while keepReading:
+                    #self._logger.error("recebendo:")
+                    time.sleep(0.05)
+                    if self.is_connected():
+                        newline = self.serialConn.readline()                        
+                    if not newline.strip():
+                        keepReading = False
+                    else:
+                        data += newline.decode()
+                
+                if data: 
+                    self.terminal(data.strip(), "Recv", False) 
+
+                    if str(data[0:len(command)-2]) == command[1:-1]:
+                        self.waitingResponse = False
+                        return str(data)
+            
+            except (serial.SerialException, termios.error): #, termios.error):
+                self.waitingResponse = False
+                self.terminal("Safety Printer communication error.", "Error", True)
+                self.closeConnection()                    
+                return "Error"
+
         else:
             self.waitingResponse = False
-            return "error"
+            return "Error"
 
         self.waitingResponse = False

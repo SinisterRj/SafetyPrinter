@@ -136,6 +136,7 @@ class SafetyPrinterPlugin(
             getPorts=[],
             toggleEnabled=["id", "onoff"],
             changeSP=["id", "newSP"],
+            changeTimer=["id", "newTimer"],
             sendCommand=["serialCommand"],
             saveEEPROM=[],
             enableShutdown=[],
@@ -159,6 +160,8 @@ class SafetyPrinterPlugin(
                 self.toggleEnabled(int(data["id"]), str(data["onoff"]))
             elif command == "changeSP":
                 self.changeSP(int(data["id"]), str(data["newSP"]))
+            elif command == "changeTimer":
+                self.changeTimer(int(data["id"]), str(data["newTimer"]))
             elif command == "sendCommand":
                 self.sendCommand(str(data["serialCommand"]))
             elif command == "saveEEPROM":
@@ -176,26 +179,15 @@ class SafetyPrinterPlugin(
             self._logger.info("Exception message: %s" % str(e))
             return flask.jsonify(error=error, status=500), 500
 
-    def newSerialCommand(self,serialCommand):
-        i = 0
-        while self.conn.send_command(serialCommand,True) == "error":
-            time.sleep(0.1)
-            i += 1
-            if i > 0:
-                self._logger.info("Serial Port Busy")
-            if i > 20:
-                self.conn.closeConnection()
-                break
-
     def resetTrip(self):
         if self.conn.is_connected():
             self._logger.info("Resseting ALL trips.")
-            self.newSerialCommand("<C1>")
+            self.conn.newSerialCommand("<C1>")
             
     def sendTrip(self):
         if self.conn.is_connected():
             self._logger.info("Virtual Emergency Button pressed.")            
-            self.newSerialCommand("<C2>")
+            self.conn.newSerialCommand("<C2>")
 
     def toggleEnabled(self, index, status):
         if self.conn.is_connected():
@@ -203,22 +195,27 @@ class SafetyPrinterPlugin(
                 self._logger.info("Enabling sensor #" + str(index))
             else:
                 self._logger.info("Disabling sensor #" + str(index))
-            self.newSerialCommand("<C3 " + str(index) + " " + status + ">")
+            self.conn.newSerialCommand("<C3 " + str(index) + " " + status + ">")
 
     def changeSP(self, index, newSP):
         if self.conn.is_connected():
             self._logger.info("Changing sensor #" + str(index) + " setpoint to:" + newSP)
-            self.newSerialCommand("<C4 " + str(index) + " " + newSP + ">")
+            self.conn.newSerialCommand("<C4 " + str(index) + " " + newSP + ">")
+
+    def changeTimer(self, index, newTimer):
+        if self.conn.is_connected():
+            self._logger.info("Changing sensor #" + str(index) + " timer to:" + newTimer)
+            self.conn.newSerialCommand("<C7 " + str(index) + " " + newTimer + ">")
 
     def sendCommand(self,newCommand):
         if self.conn.is_connected():
             self._logger.info("Sending terminal command: " + newCommand)
-            self.newSerialCommand(newCommand)
+            self.conn.newSerialCommand(newCommand)
     
     def saveEEPROM(self):
         if self.conn.is_connected():
             self._logger.info("Saving configuration to EEPROM.")
-            self.newSerialCommand("<C5>")
+            self.conn.newSerialCommand("<C5>")
 
     def toggleShutdown(self):
         self.lastCheckBoxValue = self._automatic_shutdown_enabled
@@ -323,7 +320,7 @@ class SafetyPrinterPlugin(
         if self.turnOffPrinter:
             if self.conn.is_connected():
                 self._logger.info("Turning off the printer.")
-                self.newSerialCommand("<C6 off>")           
+                self.conn.newSerialCommand("<C6 off>")           
 
         shutdown_command = self._settings.global_get(["server", "commands", "systemShutdownCommand"])
         self._logger.info("Shutting down system with command: {command}".format(command=shutdown_command))
