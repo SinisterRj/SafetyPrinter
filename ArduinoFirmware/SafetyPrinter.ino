@@ -15,6 +15,13 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  * 
+ * Version 0.2.3
+ * Changes:
+ * 1) Fix a bug when reading EEPROM data.
+ * 2) Split project into multiple files.
+ * 3) Checks EEPROM for CRC.
+ * 4) Update <c4> command to send EEPROM and Serial Protocol versions
+ * 
  * Version 0.2.2
  * Changes:
  * 1) Defined limits for set point definition.
@@ -23,6 +30,7 @@
  * 4) Commands and arguments are now case insensitive.
  * 5) Included command <c7> to change sensor timers.
  * 6) included command <c8> to return sensors configuration (enabled, alarm set point and timer) back to original values.
+ * 7) Fix a bug that interpretates no argument as argument 0 in some commands.
  * 
  * Version: 0.2.1
  * 05/26/2021
@@ -36,7 +44,7 @@
  */
 
  //*********************** A fazer: incluir os status de enabled na eeprom: Tá dando um erro bizarro que o arduino para de entender os caracteres que eu mando assim que eu gravo alguma coisa na eeprom
-
+#include <Arduino.h>
 #include <avr/wdt.h> //Watchdog
 #include <EEPROM.h>  //EEPROM access
 
@@ -69,7 +77,7 @@
 #define Sensor1AlarmSP         0
 
 #define Sensor2Label          "Flame 2"
-#define Sensor2Pin             9
+#define Sensor2Pin             8
 #define Sensor2Type            DigitalSensor
 #define Sensor2Timer           250
 #define Sensor2AlarmSP         0
@@ -87,18 +95,19 @@
 #define Sensor4AlarmSP         0
 
 #define Sensor5Label           "HotEnd Temp."
-#define Sensor5Pin             7
-#define Sensor5AuxPin          2  // Power pin for NTCs Thermistors
+#define Sensor5Pin             A7
+#define Sensor5AuxPin          3  // Power pin for NTCs Thermistors
 #define Sensor5Type            NTCSensor
 #define Sensor5Timer           250
 #define Sensor5AlarmSP         290
-/*
-#define Sensor6Label           "Spare"
-#define Sensor6Pin             1
-#define Sensor6Type            0
+
+#define Sensor6Label           "Bed Temp."
+#define Sensor6Pin             A6
+#define Sensor6AuxPin          2  // Power pin for NTCs Thermistors
+#define Sensor6Type            NTCSensor
 #define Sensor6Timer           250
-#define Sensor6AlarmSP         0
-*/
+#define Sensor6AlarmSP         150
+
 /*
 #define Sensor7Label           "Spare"
 #define Sensor7Pin             1
@@ -190,8 +199,10 @@
 
 // *************************** Don't change after this line **********************************
 
-#define VERSION "0.2.2"
-#define EEPROMVERSION 1   // Incremental BYTE. Don't use 255. Firmware overwrites the EEPROM with standard values if the number readed from EEPROM is different. change everytime that EEPROM structure is changed.
+#define VERSION         "0.2.3"
+#define RELEASEDATE     "Jul 21 2021"
+#define EEPROMVERSION   3            // Incremental BYTE. Firmware overwrites the EEPROM with standard values if the number readed from EEPROM is different. change everytime that EEPROM structure is changed.
+#define COMMPROTOCOL    1            // Incremental BYTE. Octoprint plugin communication protocol version. 
  
 typedef struct
 {
@@ -216,7 +227,6 @@ typedef struct
   int alarmSP;
   bool enabled;
 } tDefault;
-
 
 /* ****************************************************************************
  Declare all sensors using the above template
@@ -363,7 +373,6 @@ void setup() {
         }
      }          
   }
-  
   delay(500);
 
   // Finish Led test  
@@ -382,9 +391,8 @@ void setup() {
   startTimer(&ledTimer.startMs,&ledTimer.started);
 
   #ifdef SerialComm
-  Serial.println("Safety Printer MCU ver." VERSION ", release date: " __DATE__); // Boot end msg. Octoprint Plug in looking for this msg in order to indicate that the arduino ir ready to receive commands.
+  Serial.println("Safety Printer MCU ver." VERSION ", release date: " RELEASEDATE); // Boot end msg. Octoprint Plug in looking for this msg in order to indicate that the arduino ir ready to receive commands.
   #endif
-
 
 }
 
@@ -402,7 +410,7 @@ void loop() {
      //LED indication of interlock status
      interlockStatusChanged = false;
      digitalWrite(TripLedPin, interlockStatus);
-     EEPROM.update(1, interlockStatus);
+     updateEEPROMinterlock();
   }
   
   // Heart beat (using alarm and trip LEDs to test them)
@@ -426,444 +434,6 @@ void loop() {
   //Reset watchdog timer
   wdt_reset();
 }
-
-void readEEPROMData() {
-  /* Check EEPROM for the last interlock state
-  * EEPROM MAP:
-  * [0] : EEPROM version flag to check if its written or not;
-  * [1] : Interlock Status;
-  * [2] : Sensors Enabled status;
-  * [3]~[18]  : Sensor 0 to 7 alarm set points (bytes 1 and 2)
-  * [19]~[51] : Sensor 0 to 7 timers (bytes 1 to 4)
-
-  */
-  int firstTimeRun = EEPROM.read(0);
-  if (firstTimeRun == EEPROMVERSION) { // Verify if there is EEPROMVERSION on EEPROM address 0 (the standard is 255 when its blank)
-     interlockStatus = EEPROM.read(1);
-     if (interlockStatus) {
-        interlock(false,0);
-     } else {
-        resetInterlock(false);
-     }
-    // Read Enabled Status from EEPROM
-    byte EEPROMSensorsEnabled = EEPROM.read(2); 
-    for(uint8_t i = 0; i < 8; i++){
-      if (7-i < numOfSensors) {
-         sensors[7-i].enabled = EEPROMSensorsEnabled % 2;   
-      }
-      EEPROMSensorsEnabled = EEPROMSensorsEnabled / 2;
-    }
-    for(uint8_t i = 0; i < numOfSensors; i++){
-        /*byte byte1 = EEPROM.read(3 + (i*2));
-        byte byte2 = EEPROM.read(4 + (i*2));*/
-
-        EEPROM.get(3 + (i*sizeof(int)), sensors[i].alarmSP);
-        if ((sensors[i].alarmSP < SPLimits[sensors[i].type][0]) || (sensors[i].alarmSP > SPLimits[sensors[i].type][1])) {
-           // Wrong value. Change back to standard:           
-           #ifdef SerialComm
-           Serial.println("Invalid EEPROM set point read (" + String(sensors[i].alarmSP) +"). Defining standard set point to " + sensors[i].label + " (" + String(defaultSensors[i].alarmSP) + ").");
-           #endif
-           sensors[i].alarmSP = defaultSensors[i].alarmSP;
-        }
-    }    
-    for(uint8_t i = 0; i < numOfSensors; i++){
-        EEPROM.get(19 + (i*sizeof(long)),sensors[i].timer);
-    }    
-  } else {
-    //Write EEPROM for the first time
-    #ifdef SerialComm
-    Serial.println(F("Wrong EEPROM version. Overwriting EEPROM with standard values."));
-    #endif
-    EEPROM.update(0,EEPROMVERSION); // Controll EEPROM version
-    EEPROM.update(1,0); // Interlock status
-  
-    byte EEPROMSensorsEnabled = 0; 
-    for(uint8_t i = 0; i < numOfSensors; i++){
-       EEPROMSensorsEnabled += round(sensors[i].enabled * pow(2,7-i));
-    }
-    EEPROM.update(2,EEPROMSensorsEnabled);
-
-    for(uint8_t i = 0; i < numOfSensors; i++){
-       EEPROM.put(3 + (i*sizeof(int)), sensors[i].alarmSP);
-       EEPROM.put(19 + (i*sizeof(long)), sensors[i].timer);
-    }     
-  }  
-}
-
-//*************************   Serial communication module  *************************
-#ifdef SerialComm
-void recvCommandWithStartEndMarkers() {  
-  /* Receive commands from PC
-  * 
-  * This function receive serial ASCII data and splits it into a "command" and up to 4 "arguments",
-  * The sintax must be:
-  * <COMAND ARGUMENT1 ARGUMENT2 ARGUMENT3 ARGUMENT4> 
-  * 
-  */
-  #define STARTMARKER '<'
-  #define ENDMARKER '>'
-  #define NUMCHARS 38
-  static boolean recvInProgress = false;
-  static byte ndx = 0;
-  char rc;
-  char receivedChars[NUMCHARS+1] = "";
-  //String receivedStr;
-  char command[4] = "";
-  char argument1[8] = "";
-  char argument2[8] = "";
-  char argument3[8] = "";
-  char argument4[8] = "";
-  boolean newData = false;
-  int test = 0;
-    
-    
-    Serial.flush();
-    
-    while (Serial.available() > 0 && newData == false) {
-        delay(3);
-        rc = Serial.read();
-        if (rc != -1) {
-          if (recvInProgress == true ) {
-              if (rc != ENDMARKER) {
-                  receivedChars[ndx] = (char)rc;
-                  //Serial.print(rc, DEC); 
-                  //Serial.println(" " + String(ndx) + ":" + rc + "-" + receivedChars[ndx]);
-                  //receivedStr += rc;
-                  ndx++;
-                  
-                  if (ndx >= NUMCHARS) {
-                      ndx = NUMCHARS - 1;
-                  }
-              }
-              else {
-                
-                  receivedChars[ndx] = '\0'; // terminate the string
-                  recvInProgress = false;
-                  ndx = 0;
-                  newData = true;
-              }
-          }
-          else if (rc == STARTMARKER) {
-              recvInProgress = true;
-          }
-        }
-    }
-    if (newData == true) { 
-      char * strtokIndx; // this is used by strtok() as an index
-
-      //Splits commands and argumments
-              
-      strtokIndx = strtok(receivedChars," "); 
-      strcpy(command, strtokIndx);
-    
-      strtokIndx = strtok(NULL," ");   
-      strcpy(argument1, strtokIndx); 
-    
-      strtokIndx = strtok(NULL," ");     
-      strcpy(argument2, strtokIndx); 
-    
-      strtokIndx = strtok(NULL," ");   
-      strcpy(argument3, strtokIndx); 
-    
-      strtokIndx = strtok(NULL," ");     
-      strcpy(argument4, strtokIndx); 
-
-      //Identifyes each command
-      //Add here if you need to add new commands
-      //Remember that the strcmp is case sensitive
-      if (String(command).equalsIgnoreCase("c1")) {
-        Cmd_c1();
-      } else if (String(command).equalsIgnoreCase("c2")) {
-        Cmd_c2();        
-      } else if (String(command).equalsIgnoreCase("c3")) {
-        Cmd_c3(argument1,argument2);   
-      } else if (String(command).equalsIgnoreCase("c4")) {
-        Cmd_c4(argument1,argument2);        
-      } else if (String(command).equalsIgnoreCase("c5")) {
-        Cmd_c5();      
-      } else if (String(command).equalsIgnoreCase("c6")) {
-        Cmd_c6(argument1);
-      } else if (String(command).equalsIgnoreCase("c7")) {
-        Cmd_c7(argument1,argument2);
-      } else if (String(command).equalsIgnoreCase("c8")) {
-        Cmd_c8(argument1);      
-      } else if (String(command).equalsIgnoreCase("r1")) {
-        Cmd_r1();
-      } else if (String(command).equalsIgnoreCase("r2")) {
-        Cmd_r2();
-      } else if (String(command).equalsIgnoreCase("r3")) {
-        Cmd_r3();
-      } else if (strcmp(command,"r4") == 0 or strcmp(command,"R4") == 0) {
-        Cmd_r4();
-      } else {
-        ReturnError(0,command);
-      }
-    }
-}
-
-void ReturnError(int type, char text[8]){
-  // Feedbacks wrong serial commands or arguments
-  switch (type) {
-    case 1:
-    case 2:
-    case 3:
-    case 4:  
-         Serial.println("Unknown argument " + String(type) + ":" + String(text)); 
-      break;
-    default:
-          Serial.println("Unknown command: \"" + String(text) + "\"!");
-      break;
-  }
-}
-
-void Cmd_c1()
-{
-   // Serial command to Reset trip condition
-   if (printerPowered) {
-      Serial.println(F("C1: Resseting interlocks."));
-   } else {
-      Serial.println(F("C1: Resseting interlocks but printer is powered OFF by <C6> command."));
-   }
-   resetInterlock(false);
-}
-
-void Cmd_c2()
-{
-   // Serial command to Trip
-   Serial.println(F("C2: External interlock received."));
-   interlock(false,0);
-}
-
-void Cmd_c3(char argument1[8], char argument2[8])
-{
-   // Serial command to enable or dissable a sensor
-   if (String(argument1).equalsIgnoreCase("all")) {
-       if (String(argument2).equalsIgnoreCase("on")) {
-          for (uint8_t i =0; i < numOfSensors; i++) { 
-             sensors[i].enabled = 1;
-          }   
-          Serial.println(F("C3: ALL sensors are ENABLED.")); 
-       } else if (String(argument2).equalsIgnoreCase("off")) {
-          for (uint8_t i =0; i < numOfSensors; i++) { 
-             sensors[i].enabled = 0;
-             sensors[i].active = 0;
-          } 
-          Serial.println(F("C3: ALL sensors are DISABLED."));  
-       }       
-   } else {
-     int index = atoi(argument1);
-     if (index >= 0 and index < numOfSensors) {
-       if (String(argument2).equalsIgnoreCase("on")) {
-          sensors[index].enabled = 1;   
-          Serial.println("C3: Sensor: " + sensors[index].label + " is ENABLED."); 
-       } else if (String(argument2).equalsIgnoreCase("off")) {
-          sensors[index].enabled = 0;
-          sensors[index].active = 0;
-          Serial.println("C3: Sensor: " + sensors[index].label + " is DISABLED.");  
-       } else {
-          ReturnError(2,argument2);
-       }       
-     } else {
-        ReturnError(1,argument1);
-     }
-   }
-}
-
-void Cmd_c4(char argument1[8], char argument2[8])
-{
-   // Serial command to change set point
-   int index = atoi(argument1);
-   if (index >= 0 and index < numOfSensors) {
-      int newSP = atoi(argument2);
-      int oldSP = sensors[index].alarmSP;
-      if ((newSP < SPLimits[sensors[index].type][0]) || (newSP > SPLimits[sensors[index].type][1])) {
-         // Wrong value.        
-         Serial.println("C4: Alarm set point for: " + sensors[index].label + " must be between or equal to: " + SPLimits[sensors[index].type][0] + " and " + SPLimits[sensors[index].type][1] + "."); 
-      } else {
-         sensors[index].alarmSP = newSP;   
-         Serial.println("C4: Sensor: " + sensors[index].label + " set point changed from: " + String(oldSP) + " to: " + String(sensors[index].alarmSP) + "."); 
-      }       
-   } else {
-      ReturnError(1,argument1);
-   }
-}
-
-void Cmd_c5()
-{
-   // Update EEPROM sensors enabled status
-   byte EEPROMSensorsEnabled = 0; 
-   unsigned long savedTimer;
-   int savedSP;
-   for(uint8_t i = 0; i < numOfSensors; i++){
-      EEPROMSensorsEnabled += round(sensors[i].enabled * pow(2,7-i));
-   }
-   EEPROM.update(2,EEPROMSensorsEnabled);
-   
-   // Update EEPROM sensors alarm set point
-   for(uint8_t i = 0; i < numOfSensors; i++){
-      //EEPROM.update(3 + (i*sizeof(int)), sensors[i].alarmSP >> 8);
-      //EEPROM.update(4 + (i*sizeof(int)), sensors[i].alarmSP & 0xFF);
-      
-      EEPROM.get(3 + (i*sizeof(int)),savedSP);
-      //Serial.println("---"+String(i*sizeof(int)));
-      //Serial.println(savedSP);
-      //Serial.println(sensors[i].alarmSP);
-      if (savedSP != sensors[i].alarmSP) {
-        EEPROM.put(3 + (i*sizeof(int)), sensors[i].alarmSP);
-      }
-   }
-
-   // Update EEPROM sensors alarm timers
-   for(uint8_t i = 0; i < numOfSensors; i++){
-      EEPROM.get(19 + (i*sizeof(long)),savedTimer);
-      if (savedTimer != sensors[i].timer) {
-        EEPROM.put(19 + (i*sizeof(long)), sensors[i].timer);
-      }
-   }
-   Serial.println("C5: EEPROM updated.");   
-}
-
-void Cmd_c6(char argument1[8])
-{
-    if (String(argument1).equalsIgnoreCase("off")) {
-      // Turns off printer
-      turnOnOff(false);
-      Serial.println("C6: Printer turned OFF.");  
-    } else if (String(argument1).equalsIgnoreCase("on")) {
-       // Turns on printer
-       if (!interlockStatus) {
-         turnOnOff(true);
-         Serial.println("C6: Printer turned ON.");  
-       } else {
-         Serial.println("C6: Can't turn printer ON with INTERLOCK status ON.");
-       }
-    } else {
-          ReturnError(1,argument1);
-    }
-}
-
-void Cmd_c7(char argument1[8], char argument2[8])
-{
-   // Serial command to change timer
-   int index = atoi(argument1);
-   if (index >= 0 and index < numOfSensors) {
-      unsigned long newTimer = atol(argument2);
-      unsigned long oldTimer = sensors[index].timer;
-      if ((newTimer < 0) || (newTimer > 4294967295)) {
-         // Wrong value.        
-         Serial.println("C7: Timer for: " + sensors[index].label + " must be between or equal to: 0 and 4,294,967,295."); 
-      } else {
-         sensors[index].timer = newTimer;   
-         Serial.println("C7: Sensor: " + sensors[index].label + " timer changed from: " + String(oldTimer) + "ms to: " + String(sensors[index].timer) + "ms."); 
-      }       
-   } else {
-      ReturnError(1,argument1);
-   }
-}
-
-void Cmd_c8(char argument1[8])
-{
-   // Serial command to change sensors enabled, alarm set point and timer to standard values
-  if (String(argument1).equalsIgnoreCase("all")) {
-      for (int i =0; i < numOfSensors; i++) { 
-         sensors[i].enabled = defaultSensors[i].enabled;
-         sensors[i].alarmSP = defaultSensors[i].alarmSP;
-         sensors[i].timer = defaultSensors[i].timer;
-      }   
-      Serial.println(F("C8: ALL sensors configurations returned to standard values.")); 
-   } else {
-     int index = atoi(argument1);
-     if (index >= 0 and index < numOfSensors) {
-         sensors[index].enabled = defaultSensors[index].enabled;
-         sensors[index].alarmSP = defaultSensors[index].alarmSP;
-         sensors[index].timer = defaultSensors[index].timer;
-         Serial.println("C8: Sensor: " + sensors[index].label + " configurations returned to standard values."); 
-     } else {
-        ReturnError(1,argument1);
-     }
-   }
-}
-
-void Cmd_r1()
-{
-   // Serial command to Return Input Status for Octoprint plugin
-   Serial.print("R1:"+String(interlockStatus));
-   for (int i =0; i < numOfSensors; i++) { 
-      Serial.print("#" + String(i) + "," + String(sensors[i].enabled) + "," +  String(sensors[i].active) + "," + String(sensors[i].actualValue) + "," + String(sensors[i].alarmSP) + "," + String(sensors[i].timer) + "," + String(sensors[i].spare1) + "," + String(sensors[i].spare3) + ",");  
-   }
-   Serial.println();
-}
-
-void Cmd_r2()
-{
-   // Serial command to Return Input Labels for Octoprint plugin
-   Serial.print(F("R2:"));
-   for (int i =0; i < numOfSensors; i++) { 
-      Serial.print("#" + String(i) + "," + sensors[i].label + "," + String(sensors[i].type) + "," + String(sensors[i].spare2) + "," + String(sensors[i].spare4) + ",");  
-   }
-   Serial.println();
-}
-
-void Cmd_r3()
-{
-   // Serial command to Return Input Status more suitable for humans.
-   Serial.println(F("R3: Safety Printer Status"));
-   Serial.println(F("-------------------------------------------------------------------------------"));
-   Serial.print(F("** Interlock Status ** :"));
-   if (interlockStatus) Serial.println(F(" ********  Shudown (TRIP) ********")); 
-   else Serial.println(F(" Normal Operation")); 
-   Serial.println(F("-------------------------------------------------------------------------------"));
-   Serial.println(F("#:| Label                           | Enab.| Act.| Value | S.Point | Timer     |"));
-   for (int i = 0; i < numOfSensors; i++) { 
-      Serial.print(String(i) + ".|." + sensors[i].label);
-      int dots = 32-sensors[i].label.length();
-      for (int j = 0; j< dots ;j++)
-      {
-         Serial.print(F("."));
-      }
-      Serial.print(F("|."));
-      if (sensors[i].enabled) {
-         Serial.print(F("Yes"));
-      } else {
-         Serial.print(F("No."));
-      }
-      Serial.print(F("..|."));
-      if (sensors[i].active) {
-         Serial.print(F("Yes"));
-      } else {
-         Serial.print(F("No."));
-      }
-      Serial.print(".|." + String(sensors[i].actualValue));
-      dots = 6-String(sensors[i].actualValue).length();
-      for (int j = 0; j< dots;j++)
-      {
-         Serial.print(F("."));
-      }
-      Serial.print("|." + String(sensors[i].alarmSP));
-      dots = 8-String(sensors[i].alarmSP).length();
-      for (int j = 0; j< dots;j++)
-      {
-         Serial.print(F("."));
-      }
-      Serial.print("|." + String(sensors[i].timer));
-      dots = 10-String(sensors[i].timer).length();
-      for (int j = 0; j< dots;j++)
-      {
-         Serial.print(F("."));
-      }
-      Serial.println(F("|"));
-   }
-   Serial.println(F("-------------------------------------------------------------------------------"));
-}
-
-void Cmd_r4()
-{
-   // Serial command to Return firmware version and release date
-   Serial.println(F("R4:" VERSION "," __DATE__)); 
-}
-
-#endif
-//***************************************************************************************
 
 void checkSensors() {
    // Check all inputs for new alamrs

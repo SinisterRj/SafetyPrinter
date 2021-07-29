@@ -13,7 +13,7 @@ if ((sys.platform == 'linux') or (sys.platform =='linux2')):
 class Connection():
     def __init__(self, plugin):
 
-        self.compatibleFirmware = ["0.2.1","0.2.2"]
+        self.compatibleFirmwareCommProtocol = ["1"]
 
         # Serial connection variables
         self.ports = []
@@ -41,12 +41,26 @@ class Connection():
         self.lastInterlockStatus = 0
 
         # Plug-in shortcuts
-        self._logger = plugin._logger
+        self._console_logger = plugin._console_logger
         self._printer = plugin._printer
         self._printer_profile_manager = plugin._printer_profile_manager
         self._plugin_manager = plugin._plugin_manager
         self._identifier = plugin._identifier
         self._settings = plugin._settings
+
+        #Firmware info
+        self.FWVersion = ""
+        self.FWReleaseDate = ""
+        self.FWEEPROM = ""
+        self.FWCommProtocol = ""
+        self.FWValidVersion = False
+
+        #Octopod Integration
+        self.octopodDetected = False;
+        helpers = self._plugin_manager.get_helpers("octopod", "apns_notification")
+        if helpers and "apns_notification" in helpers:
+            self.push_notification = helpers["apns_notification"]
+            self.octopodDetected = True;
 
         self.connect()        
 
@@ -54,10 +68,10 @@ class Connection():
 
     def connect(self):
         # Connects to Safety Printer Arduino through serial port
-        self._logger.info("Connecting...")
+        self._console_logger.info("Connecting...")
 
         self.ports = self.getAllPorts()
-        self._logger.info("Potential ports: %s" % self.ports)
+        self._console_logger.info("Potential ports: %s" % self.ports)
         
         if ((self._printer.get_current_connection()[1] == None) and (self._settings.get(["serialport"]) == "AUTO")):
             self.terminal("Can't connect on AUTO serial port if printer is not connected. Aborting Safety Printer MCU connection.","ERROR",True)
@@ -68,7 +82,7 @@ class Connection():
                 
                 if ((not self._connected) and ((self._settings.get(["serialport"]) == "AUTO") or (self._settings.get(["serialport"]) == port))):
                     if self.isPrinterPort(port):
-                        self._logger.info("Skipping Printer Port:" + port)
+                        self._console_logger.info("Skipping Printer Port:" + port)
                     else:
                         try:
                             self.serialConn = serial.Serial(port, 115200, timeout=0.5)
@@ -102,17 +116,26 @@ class Connection():
                 self.terminal(responseStr,"Info",True);
                 vpos1 = responseStr.find(':',0)
                 vpos2 = responseStr.find(',',vpos1)
-                connectedVersion = responseStr[vpos1+1:vpos2]
+                self.FWVersion = responseStr[vpos1+1:vpos2]
+                vpos1 = vpos2 + 1
+                vpos2 = responseStr.find(',',vpos1)
+                self.FWReleaseDate = responseStr[vpos1:vpos2]
+                vpos1 = vpos2 + 1
+                vpos2 = responseStr.find(',',vpos1)
+                self.FWEEPROM = responseStr[vpos1:vpos2]
+                vpos1 = vpos2 + 1
+                vpos2 = responseStr.find(',',vpos1)
+                self.FWCommProtocol = responseStr[vpos1:vpos2]
 
-                validVersion = False
-                for version in self.compatibleFirmware:
-                    if version == connectedVersion:
-                        validVersion = True
+                self.FWValidVersion = False
+                for version in self.compatibleFirmwareCommProtocol:
+                    if version == self.FWCommProtocol:
+                        self.FWValidVersion = True
 
-                if validVersion:
+                if self.FWValidVersion:
                     self.update_ui_connection_status()
                 else:
-                    self.terminal("Invalid firmware version: " + connectedVersion,"ERROR",True)
+                    self.terminal("Invalid firmware comunication protocol version: " + self.FWCommProtocol,"ERROR",True)
                     self.closeConnection()
 
         else:
@@ -145,12 +168,12 @@ class Connection():
 
         if 'win32' in sys.platform:
             # use windows com stuff
-            self._logger.info("Using a windows machine") 
+            self._console_logger.info("Using a Windows machine") 
 
             arduinoVIDPID = ['.*2341:003D.*','.*2341:003F.*','.*2341:0042.*','.*2341:0043.*','.*2341:0044.*','.*0403:6001.*','.*0403:6015.*','.*1A86:5523.*','.*1A86:7523.*']
             for arduino in arduinoVIDPID:
                 for port in serial.tools.list_ports.grep(arduino):
-                    self._logger.info("got port %s" % port.device)
+                    self._console_logger.info("got port %s" % port.device)
                     baselist.append(port.device)
         else:
             baselist = baselist + glob.glob('/dev/serial/by-id/*FTDI*') + glob.glob('/dev/*usbserial*') + glob.glob(
@@ -161,7 +184,7 @@ class Connection():
         return baselist
 
     def getRealPaths(self, ports):
-        self._logger.info("Paths: %s" % ports)
+        self._console_logger.info("Paths: %s" % ports)
         for index, port in enumerate(ports):
             port = os.path.realpath(port)
             ports[index] = port
@@ -170,8 +193,8 @@ class Connection():
     def isPrinterPort(self, selected_port):
         selected_port = os.path.realpath(selected_port)
         printer_port = self._printer.get_current_connection()[1]
-        self._logger.info("Trying port: %s" % selected_port)
-        self._logger.info("Printer port: %s" % printer_port)
+        self._console_logger.info("Trying port: %s" % selected_port)
+        self._console_logger.info("Printer port: %s" % printer_port)
         # because ports usually have a second available one (.tty or .cu)
         printer_port_alt = ""
         if printer_port is None:
@@ -181,7 +204,7 @@ class Connection():
                 printer_port_alt = printer_port.replace("tty.", "cu.", 1)
             elif "cu." in printer_port:
                 printer_port_alt = printer_port.replace("cu.", "tty.", 1)
-            self._logger.info("Printer port alt: %s" % printer_port_alt)
+            self._console_logger.info("Printer port alt: %s" % printer_port_alt)
             if selected_port == printer_port or selected_port == printer_port_alt:
                 return True
             else:
@@ -220,7 +243,12 @@ class Connection():
             self.interlockStatus = responseStr[3] 
             
             if (self.interlockStatus != self.lastInterlockStatus) and (self.interlockStatus == "1"):
-                self._logger.info("New INTERLOCK detected")
+                self._console_logger.info("WARNING: New INTERLOCK detected.")
+                #Octopod notification
+                try:
+                    self.push_notification("\U0001F6D1 New INTERLOCK detected.")
+                except AttributeError:
+                    pass
             
             self.lastInterlockStatus = self.interlockStatus
             self._plugin_manager.send_plugin_message(self._identifier, {"type": "interlockUpdate", "interlockStatus": self.interlockStatus})
@@ -260,10 +288,17 @@ class Connection():
                     vpos1 = vpos2 + 1
                     
                     if (self.lastStatus[index] != self.sensorActive[index]) and (self.sensorActive[index] == "1"):
-                        self._logger.info("New Alarm detected - Index: " + str(index) + " Label:" + str(self.sensorLabel[index]) + " Enabled:" + str(self.sensorEnabled[index]) + " Active:" + str(self.sensorActive[index]) + " ActualValue:" + str(self.sensorActualValue[index]))
+                        self._console_logger.info("New Alarm detected - Index: " + str(index) + " Label:" + str(self.sensorLabel[index]) + " Enabled:" + str(self.sensorEnabled[index]) + " Active:" + str(self.sensorActive[index]) + " ActualValue:" + str(self.sensorActualValue[index]))
+                        #Octopod notification
+                        if (self.sensorEnabled[index] == "1"):
+                            #Octopod notification
+                            try:
+                                self.push_notification("\U0001F514 " + str(self.sensorLabel[index]) + " (" + str(self.sensorActualValue[index]) + ")")
+                            except AttributeError:
+                                pass                            
 
                     self.lastStatus[index] = self.sensorActive[index]
-                    #self._logger.info("Index: " + str(index) + " Label:" + str(self.sensorLabel[index]) + " Enabled:" + str(self.sensorEnabled[index]) + " Active:" + str(self.sensorActive[index]) + " ActualValue:" + str(self.sensorActualValue[index]))
+                    #self._console_logger.info("Index: " + str(index) + " Label:" + str(self.sensorLabel[index]) + " Enabled:" + str(self.sensorEnabled[index]) + " Active:" + str(self.sensorActive[index]) + " ActualValue:" + str(self.sensorActualValue[index]))
                     self._plugin_manager.send_plugin_message(self._identifier, {"type": "statusUpdate", "sensorIndex": index, "sensorNumber": totalSensors, "sensorLabel": self.sensorLabel[index], "sensorEnabled": self.sensorEnabled[index], "sensorActive": self.sensorActive[index], "sensorActualValue": self.sensorActualValue[index], "sensorType": self.sensorType[index], "sensorSP": self.sensorSP[index], "sensorTimer": self.sensorTimer[index]})
         else :
             self.update_ui_connection_status()
@@ -336,14 +371,17 @@ class Connection():
     def update_ui_connection_status(self):
         # Updates knockout connection status
         self._plugin_manager.send_plugin_message(self._identifier, {"type": "connectionUpdate", "connectionStatus": self._connected, "port": self.connectedPort})    
+        self._plugin_manager.send_plugin_message(self._identifier, {"type": "firmwareInfo", "version": self.FWVersion, "releaseDate": self.FWReleaseDate, "EEPROM": self.FWEEPROM, "CommProtocol":self.FWCommProtocol, "ValidVersion": self.FWValidVersion})
 
     def terminal(self,msg,ttype,log):
         self._plugin_manager.send_plugin_message(self._identifier, {"type": "terminalUpdate", "line": msg, "terminalType": ttype})  
         if log:
             if ttype == "ERROR":
-                self._logger.error(msg)
+                self._console_logger.error(msg)
             else:
-                self._logger.info(msg)
+                self._console_logger.info(msg)
+        else:
+            self._console_logger.debug(msg)
 
     # ****************************************** Functions to interact with Arduino when connected
 
@@ -355,7 +393,7 @@ class Connection():
             i += 1
             responseStr = self.send_command(serialCommand,True)
             if i > 0:
-                self._logger.info("Serial Port Busy")
+                self._console_logger.info("Serial Port Busy")
             if i > 20:
                 self.closeConnection()
                 break
@@ -380,7 +418,7 @@ class Connection():
                 keepReading = True
 
                 while keepReading:
-                    #self._logger.error("recebendo:")
+                    #self._console_logger.error("recebendo:")
                     time.sleep(0.05)
                     if self.is_connected():
                         newline = self.serialConn.readline()                        

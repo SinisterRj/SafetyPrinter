@@ -16,11 +16,13 @@ $(function() {
         self.type = ko.observable(type);
         self.SP = ko.observable(SP);
         self.timer = ko.observable(timer);
+
     }
 
-    function spSensorsSettingsType(visible, label, status, color, actualvalue, enabled, active, type, SP, timer, availableSP, expertMode) {
+    function spSensorsSettingsType(visible, checked, label, status, color, actualvalue, enabled, active, type, SP, timer, availableSP, expertMode) {
         var self = this;
         self.visible = ko.observable(visible);
+        self.checked = ko.observable(checked);
         self.label = ko.observable(label);
         self.status = ko.observable(status);
         self.color = ko.observable(color);
@@ -54,6 +56,7 @@ $(function() {
         self.interlock = ko.observable("Normal");
         self.interlockColor = ko.observable();
         self.tripBtnVisible = ko.observable();
+        self.activeSensors = "";
 
         self.spSensors = ko.observableArray([
            new spSensorsType(false,"","offline","gray",false,false,"0","0","0"),
@@ -76,16 +79,22 @@ $(function() {
         self.tabActive = false;
         self.tempMsgFilter = ko.observable(false);
         self.startedFilter = false;
+        self.updateSettingsSensors = false;
+        self.FWVersion = ko.observable("");
+        self.FWReleaseDate = ko.observable("");
+        self.FWEEPROM = ko.observable("");
+        self.FWCommProtocol = ko.observable("");
+        self.FWValidVersion = ko.observable(false);
 
         self.spSensorsSettings = ko.observableArray([
-           new spSensorsSettingsType(false,"","offline","gray","0",false,false,"0","0","0",[],false),
-           new spSensorsSettingsType(false,"","offline","gray","0",false,false,"0","0","0",[],false),
-           new spSensorsSettingsType(false,"","offline","gray","0",false,false,"0","0","0",[],false),
-           new spSensorsSettingsType(false,"","offline","gray","0",false,false,"0","0","0",[],false),
-           new spSensorsSettingsType(false,"","offline","gray","0",false,false,"0","0","0",[],false),
-           new spSensorsSettingsType(false,"","offline","gray","0",false,false,"0","0","0",[],false),
-           new spSensorsSettingsType(false,"","offline","gray","0",false,false,"0","0","0",[],false),
-           new spSensorsSettingsType(false,"","offline","gray","0",false,false,"0","0","0",[],false)
+           new spSensorsSettingsType(false,false,"","offline","gray","0",false,false,"0","0","0",[],false),
+           new spSensorsSettingsType(false,false,"","offline","gray","0",false,false,"0","0","0",[],false),
+           new spSensorsSettingsType(false,false,"","offline","gray","0",false,false,"0","0","0",[],false),
+           new spSensorsSettingsType(false,false,"","offline","gray","0",false,false,"0","0","0",[],false),
+           new spSensorsSettingsType(false,false,"","offline","gray","0",false,false,"0","0","0",[],false),
+           new spSensorsSettingsType(false,false,"","offline","gray","0",false,false,"0","0","0",[],false),
+           new spSensorsSettingsType(false,false,"","offline","gray","0",false,false,"0","0","0",[],false),
+           new spSensorsSettingsType(false,false,"","offline","gray","0",false,false,"0","0","0",[],false)
         ]);
 
         // Navbar variables
@@ -101,6 +110,7 @@ $(function() {
         self.automaticShutdownEnabled = ko.observable();
         self.newTrip = ko.observable(false);
         self.numOfSensors = 0;
+
 
         PNotify.prototype.options.confirm.buttons = [];
 
@@ -163,7 +173,19 @@ $(function() {
             self.availablePorts.removeAll();
             self.availablePorts.push(new ItemViewModel("AUTO"));
             OctoPrint.simpleApiCommand("SafetyPrinter", "getPorts");
+
+            self.showHideTab();
+
         };
+
+        self.showHideTab = function() {
+            // Shows or hides the terminal TAB on UI.
+            if ((self.settingsViewModel.settings.plugins.SafetyPrinter.showTerminal() == true) && (!document.getElementById("tab_plugin_SafetyPrinter_link"))) {
+                $("<li id='tab_plugin_SafetyPrinter_link' class='' data-bind='allowBindings: true'><a href='#tab_plugin_SafetyPrinter' data-toggle='tab'>Safety Printer</a></li>").appendTo("#tabs");
+            } else if (self.settingsViewModel.settings.plugins.SafetyPrinter.showTerminal() == false) {
+                $('#tab_plugin_SafetyPrinter_link').remove();
+            }
+        }
 
         // ************* Functions to autoscrool the terminal:
 
@@ -275,6 +297,7 @@ $(function() {
                 console.log("Writing EEPROM")
                 OctoPrint.simpleApiCommand("SafetyPrinter", "saveEEPROM");  
             }
+            self.showHideTab();
 
         }
 
@@ -294,20 +317,37 @@ $(function() {
             self.tempMsgFilter(!self.tempMsgFilter());
         };
 
+        self.resetBtn = function(item) {
+            // Send a command to arduino restore sensor settings
+            for (i = 0; i < self.numOfSensors; i++) {                                         
+                if (self.spSensorsSettings()[i].checked()) {
+                    console.log("Restoring " + self.spSensorsSettings()[i].label() + " default settings.");
+                    OctoPrint.simpleApiCommand("SafetyPrinter", "resetSettings", {id: i}); 
+                }
+            }
+            self.updateSettingsSensors = true;            
+        };
+
+        // ************* Functions for each button on Terminal TAB:
+
         self.sendCommandBtn = function() {
-            // Send generic user comands from command line to arduino
+            // Send generic user comands from command line on terminal to arduino
+            console.log("enviando comando");
             OctoPrint.simpleApiCommand("SafetyPrinter", "sendCommand", {serialCommand: self.command()}); 
         };
+
 
         // ************* Functions for each button on Sidebar:
 
         self.tripResetBtn = function() {
             // Send a command to arduino to reset all trips
             OctoPrint.simpleApiCommand("SafetyPrinter", "resetTrip");
-        };
-
-        self.statusBtn = function() {
-
+            
+            // Remove notification.
+            if (typeof self.tripPopup != "undefined") {
+                self.tripPopup.remove();
+                self.tripPopup = undefined;
+            }
         };
 
         self.onAutomaticShutdownEvent = function() {
@@ -408,6 +448,10 @@ $(function() {
                     self.spSensors()[i].status(statusStr);
                     self.spSensors()[i].color(colorStr);
                 }
+                if (self.updateSettingsSensors) {
+                    self.updateSettingsSensors = false;
+                    self.onSettingsShown();
+                } 
             } 
 
             else if (data.type == "interlockUpdate") {
@@ -419,20 +463,18 @@ $(function() {
 
                     self.navbarcolor("green");
                     self.navbartitle("Safety Printer: Normal operation");
-                    if (typeof self.tripPopup != "undefined") {
-                        self.tripPopup.remove();
-                        self.tripPopup = undefined;
-                    }
+                    
+                    self.activeSensors = "";
                 } else {
-                    activeSensors = "";
+                    
                     self.tripPopupOptions.text = self.tripPopupText;
                     for (i = 0; i < self.numOfSensors; i++) {                                         
-                        if (self.spSensors()[i].active() && self.spSensors()[i].enabled()){
-                            activeSensors = activeSensors + "\n" + String(self.spSensors()[i].label());                                                                       
+                        if ((self.spSensors()[i].active()) && (self.spSensors()[i].enabled()) && (self.activeSensors.indexOf(String(self.spSensors()[i].label())) == -1)){
+                            self.activeSensors = self.activeSensors + "\n" + String(self.spSensors()[i].label());                                                                       
                         }   
                     }
-                    if (activeSensors != "") {
-                        self.tripPopupOptions.text = self.tripPopupText + " Active sensors:" + activeSensors;                      
+                    if (self.activeSensors != "") {
+                        self.tripPopupOptions.text = self.tripPopupText + "\n\n Alarmed sensors:" + self.activeSensors;                      
                     }
                     if (typeof self.tripPopup != "undefined") {
                         self.tripPopup.update(self.tripPopupOptions);
@@ -468,6 +510,12 @@ $(function() {
 
                     self.navbarcolor("black");
                     self.navbartitle("Safety Printer: Offline");
+
+                    self.FWVersion("");
+                    self.FWReleaseDate("");
+                    self.FWEEPROM("");
+                    self.FWCommProtocol("");
+                    self.FWValidVersion(false);
 
                     var i;
                     for (i = 0; i < self.numOfSensors; i++) {                                         
@@ -521,6 +569,14 @@ $(function() {
                     }
                 }
             }
+            else if (data.type == "firmwareInfo") {
+                self.FWVersion(data.version);
+                self.FWReleaseDate(data.releaseDate);
+                self.FWEEPROM(data.EEPROM);
+                self.FWCommProtocol(data.CommProtocol);
+                self.FWValidVersion(data.ValidVersion);
+            }
+
         };
         
         self.abortShutdown = function(abortShutdownValue) {
@@ -535,6 +591,6 @@ $(function() {
         // ViewModels your plugin depends on, e.g. loginStateViewModel, settingsViewModel, ...
         dependencies: ["settingsViewModel"],
         // Elements to bind to, e.g. #settings_plugin_SafetyPrinter, #tab_plugin_SafetyPrinter, ...
-        elements: ["#settings_plugin_SafetyPrinter","#navbar_plugin_SafetyPrinter","#sidebar_plugin_SafetyPrinter"] //
+        elements: ["#settings_plugin_SafetyPrinter","#navbar_plugin_SafetyPrinter","#sidebar_plugin_SafetyPrinter","#tab_plugin_SafetyPrinter"] //
     });
 });
