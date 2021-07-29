@@ -43,36 +43,51 @@
  * 
  */
 
- //*********************** A fazer: incluir os status de enabled na eeprom: Tá dando um erro bizarro que o arduino para de entender os caracteres que eu mando assim que eu gravo alguma coisa na eeprom
+ 
 #include <Arduino.h>
 #include <avr/wdt.h> //Watchdog
 #include <EEPROM.h>  //EEPROM access
 
 // ****************************************************************************
-// Configuration
+// General Configuration:
 
-#define InterlockRelayPin     6 //13
-#define InterlockPolarity     HIGH  //Change if you need to toggle the behavior of the interlock pin (if its HIGH it means that the [InterlockRelayPin] output will be LOW under normal conditions and HIGH when an interlock occurs)
+#define InterlockRelayPin     6           // Arduino's Digital pin connected to the Printer's power supply relay.
+#define InterlockPolarity     HIGH        // Change if you need to toggle the behavior of the interlock pin (if its HIGH it means that the [InterlockRelayPin] output will be LOW under normal conditions and HIGH when an interlock occurs)
 
-#define ResetButtonPin        11
-#define AlarmLedPin           10
-#define TripLedPin            12
-#define TempPowerPin          2
+#define ResetButtonPin        11          // Arduino's Digital pin connected to the trip reset switch.
+#define ResetDelay            1000        // Delay for reseting the trip condition in [ms]
 
-#define SerialComm            true         // Enable serial communications
-#define BaudRate              115200       // :[2400, 9600, 19200, 38400, 57600, 115200, 250000, 500000, 1000000]
-#define ResetDelay            1000         // Delay for reseting the trip condition
-#define LEDDelay              5000         // Led heart beat interval
+#define AlarmLedPin           10          // Arduino's Digital pin connected to the alarm indication LED.
+#define TripLedPin            12          // Arduino's Digital pin connected to the trip indication LED.
+#define LEDDelay              5000        // Led heart beat interval in [ms]
 
-#define Samples               20           // num of Samples for NTC thermistor
-#define DigitalSensor         0
-#define NTCSensor             1
+#define SerialComm            true        // [true] to Enable serial communications.
+#define BaudRate              115200      // :[2400, 9600, 19200, 38400, 57600, 115200, 250000, 500000, 1000000]
 
-// Sensors - Max 8 sensors
+#define Samples               20          // Number of samples for NTC thermistor. Smaller number will add some noise to signal, greater number will add some delay on sample acquisition.
+#define DigitalSensor         0           // Internal use, don't change
+#define NTCSensor             1           // Internal use, don't change
+
+/* 
+****************************************************************************
+Sensor configuration:
+
+Max: 8 sensors
+
+All sensors have the same structure:
+
+SensorXLabel   : A string with the sensor's NAME;
+SensorXPin     : Arduino's pin (Analog or digital) connected to the sensor signal;
+SensorXAuxPin  : [Optional] - Arduino's digital pin to power the temperature sensor;
+SensorXType    : [DigitalSensor] for On/OFF sensors or [NTCSensor] for temperature sensors (NTC thermistor type)
+SensorXTimer   : Delay between the sensor signal and raising the alarm. The alarm will be raised IF the sensor signal stays in alarm condition more time than this value. Good to avoid spurious alarms. Expressed in [ms].
+SensorXAlarmSP : Alarm set point. Defines the signal condition to raise the alarm. [0] or [1] to define alarm positions on digital sensors, and a [integer] to define a high temperature on temperature sensors.
+
+*/
 
 #define Sensor1Label           "Flame 1"
 #define Sensor1Pin             9
-#define Sensor1Type            DigitalSensor    // 0 for digital, 1 for Analog temperature
+#define Sensor1Type            DigitalSensor
 #define Sensor1Timer           250
 #define Sensor1AlarmSP         0
 
@@ -96,14 +111,14 @@
 
 #define Sensor5Label           "HotEnd Temp."
 #define Sensor5Pin             A7
-#define Sensor5AuxPin          3  // Power pin for NTCs Thermistors
+#define Sensor5AuxPin          3
 #define Sensor5Type            NTCSensor
 #define Sensor5Timer           250
 #define Sensor5AlarmSP         290
 
 #define Sensor6Label           "Bed Temp."
 #define Sensor6Pin             A6
-#define Sensor6AuxPin          2  // Power pin for NTCs Thermistors
+#define Sensor6AuxPin          2
 #define Sensor6Type            NTCSensor
 #define Sensor6Timer           250
 #define Sensor6AlarmSP         150
@@ -122,11 +137,19 @@
 #define Sensor8Timer           250
 #define Sensor8AlarmSP         0
 */
+
+/* 
+****************************************************************************
+NTC thermistor temperature equivalence (calibration) table:
+
+This table is based on: R25 = 100 kOhm, beta25 = 4092 K, 4.7 kOhm pull-up, bed thermistor (thermistor_1.h from Marlin). 
+Change it if you find a better suit for yout sensor.
+
+*/
+
 #define NTC   //enable thermistor temperature measurement
 
 #ifdef NTC
-  // NTC thermistor temperature equivalence table. 
-  // R25 = 100 kOhm, beta25 = 4092 K, 4.7 kOhm pull-up, bed thermistor (thermistor_1.h from Marlin). Change it if you find a better suit for yout sensor
   #define NUMTEMPS              64  // Number of entries on the tabble.
   short temptable[NUMTEMPS][2] = {
      // Standart creality
@@ -198,6 +221,7 @@
 #endif
 
 // *************************** Don't change after this line **********************************
+// *******************************************************************************************
 
 #define VERSION         "0.2.3"
 #define RELEASEDATE     "Jul 21 2021"
