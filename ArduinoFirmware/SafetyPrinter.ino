@@ -15,6 +15,14 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  * 
+ * WARNIG: DON'T CHANGE ANYTHING IN THIS FILE! ALL CONFIGURATIONS SHOULD BE DONE IN "Configurations.h".
+ * 
+ * Version 0.2.4
+ * 07/30/2021
+ * Changes:
+ * 1) Include Marlin Thermistor files for better thermistor configuration;
+ * 2) Configuration.h created.
+ *
  * Version 0.2.3
  * Changes:
  * 1) Fix a bug when reading EEPROM data.
@@ -43,188 +51,19 @@
  * 
  */
 
- 
-#include <Arduino.h>
-#include <avr/wdt.h> //Watchdog
-#include <EEPROM.h>  //EEPROM access
-
-// ****************************************************************************
-// General Configuration:
-
-#define InterlockRelayPin     6           // Arduino's Digital pin connected to the Printer's power supply relay.
-#define InterlockPolarity     HIGH        // Change if you need to toggle the behavior of the interlock pin (if its HIGH it means that the [InterlockRelayPin] output will be LOW under normal conditions and HIGH when an interlock occurs)
-
-#define ResetButtonPin        11          // Arduino's Digital pin connected to the trip reset switch.
-#define ResetDelay            1000        // Delay for reseting the trip condition in [ms]
-
-#define AlarmLedPin           10          // Arduino's Digital pin connected to the alarm indication LED.
-#define TripLedPin            12          // Arduino's Digital pin connected to the trip indication LED.
-#define LEDDelay              5000        // Led heart beat interval in [ms]
-
-#define SerialComm            true        // [true] to Enable serial communications.
-#define BaudRate              115200      // :[2400, 9600, 19200, 38400, 57600, 115200, 250000, 500000, 1000000]
-
-#define Samples               20          // Number of samples for NTC thermistor. Smaller number will add some noise to signal, greater number will add some delay on sample acquisition.
 #define DigitalSensor         0           // Internal use, don't change
 #define NTCSensor             1           // Internal use, don't change
-
-/* 
-****************************************************************************
-Sensor configuration:
-
-Max: 8 sensors
-
-All sensors have the same structure:
-
-SensorXLabel   : A string with the sensor's NAME;
-SensorXPin     : Arduino's pin (Analog or digital) connected to the sensor signal;
-SensorXAuxPin  : [Optional] - Arduino's digital pin to power the temperature sensor;
-SensorXType    : [DigitalSensor] for On/OFF sensors or [NTCSensor] for temperature sensors (NTC thermistor type)
-SensorXTimer   : Delay between the sensor signal and raising the alarm. The alarm will be raised IF the sensor signal stays in alarm condition more time than this value. Good to avoid spurious alarms. Expressed in [ms].
-SensorXAlarmSP : Alarm set point. Defines the signal condition to raise the alarm. [0] or [1] to define alarm positions on digital sensors, and a [integer] to define a high temperature on temperature sensors.
-
-*/
-
-#define Sensor1Label           "Flame 1"
-#define Sensor1Pin             9
-#define Sensor1Type            DigitalSensor
-#define Sensor1Timer           250
-#define Sensor1AlarmSP         0
-
-#define Sensor2Label          "Flame 2"
-#define Sensor2Pin             8
-#define Sensor2Type            DigitalSensor
-#define Sensor2Timer           250
-#define Sensor2AlarmSP         0
-
-#define Sensor3Label           "Emergency Button"
-#define Sensor3Pin             5
-#define Sensor3Type            DigitalSensor
-#define Sensor3Timer           250
-#define Sensor3AlarmSP         0
-
-#define Sensor4Label           "Smoke"
-#define Sensor4Pin             7
-#define Sensor4Type            DigitalSensor
-#define Sensor4Timer           250
-#define Sensor4AlarmSP         0
-
-#define Sensor5Label           "HotEnd Temp."
-#define Sensor5Pin             A7
-#define Sensor5AuxPin          3
-#define Sensor5Type            NTCSensor
-#define Sensor5Timer           250
-#define Sensor5AlarmSP         290
-
-#define Sensor6Label           "Bed Temp."
-#define Sensor6Pin             A6
-#define Sensor6AuxPin          2
-#define Sensor6Type            NTCSensor
-#define Sensor6Timer           250
-#define Sensor6AlarmSP         150
-
-/*
-#define Sensor7Label           "Spare"
-#define Sensor7Pin             1
-#define Sensor7Type            0
-#define Sensor7Timer           250
-#define Sensor7AlarmSP         0
-*/
-/*
-#define Sensor8Label           "Spare"
-#define Sensor8Pin             1
-#define Sensor8Type            0
-#define Sensor8Timer           250
-#define Sensor8AlarmSP         0
-*/
-
-/* 
-****************************************************************************
-NTC thermistor temperature equivalence (calibration) table:
-
-This table is based on: R25 = 100 kOhm, beta25 = 4092 K, 4.7 kOhm pull-up, bed thermistor (thermistor_1.h from Marlin). 
-Change it if you find a better suit for yout sensor.
-
-*/
-
-#define NTC   //enable thermistor temperature measurement
-
-#ifdef NTC
-  #define NUMTEMPS              64  // Number of entries on the tabble.
-  short temptable[NUMTEMPS][2] = {
-     // Standart creality
-    {   23, 300 },
-    {   25, 295 },
-    {   27, 290 },
-    {   28, 285 },
-    {   31, 280 },
-    {   33, 275 },
-    {   35, 270 },
-    {   38, 265 },
-    {   41, 260 },
-    {   44, 255 },
-    {   48, 250 },
-    {   52, 245 },
-    {   56, 240 },
-    {   61, 235 },
-    {   66, 230 },
-    {   71, 225 },
-    {   78, 220 },
-    {   84, 215 },
-    {   92, 210 },
-    {  100, 205 },
-    {  109, 200 },
-    {  120, 195 },
-    {  131, 190 },
-    {  143, 185 },
-    {  156, 180 },
-    {  171, 175 },
-    {  187, 170 },
-    {  205, 165 },
-    {  224, 160 },
-    {  245, 155 },
-    {  268, 150 },
-    {  293, 145 },
-    {  320, 140 },
-    {  348, 135 },
-    {  379, 130 },
-    {  411, 125 },
-    {  445, 120 },
-    {  480, 115 },
-    {  516, 110 },
-    {  553, 105 },
-    {  591, 100 },
-    {  628,  95 },
-    {  665,  90 },
-    {  702,  85 },
-    {  737,  80 },
-    {  770,  75 },
-    {  801,  70 },
-    {  830,  65 },
-    {  857,  60 },
-    {  881,  55 },
-    {  903,  50 },
-    {  922,  45 },
-    {  939,  40 },
-    {  954,  35 },
-    {  966,  30 },
-    {  977,  25 },
-    {  985,  20 },
-    {  993,  15 },
-    {  999,  10 },
-    { 1004,   5 },
-    { 1008,   0 },
-    { 1012,  -5 },
-    { 1016, -10 },
-    { 1020, -15 }
-  };
-#endif
+ 
+#include <Arduino.h>
+#include <avr/wdt.h>      //Watchdog
+#include <EEPROM.h>       //EEPROM access
+#include "Configuration.h"
 
 // *************************** Don't change after this line **********************************
 // *******************************************************************************************
 
-#define VERSION         "0.2.3"
-#define RELEASEDATE     "Jul 21 2021"
+#define VERSION         "0.2.4"
+#define RELEASEDATE     "Jul 30 2021"
 #define EEPROMVERSION   3            // Incremental BYTE. Firmware overwrites the EEPROM with standard values if the number readed from EEPROM is different. change everytime that EEPROM structure is changed.
 #define COMMPROTOCOL    1            // Incremental BYTE. Octoprint plugin communication protocol version. 
  
@@ -242,7 +81,8 @@ typedef struct
   bool spare1;
   bool spare2;
   int spare3;
-  int spare4; 
+  int spare4;
+  int16_t tTI; //temp table index
 } tSensor;
 
 typedef struct
@@ -263,8 +103,9 @@ typedef struct
  enabled, alarmStatus: Internal use.
 
 */
+
 tSensor sensors [] =
-{  
+{   
 #ifdef Sensor1Label
    Sensor1Label,Sensor1Pin,
    #ifdef Sensor1AuxPin 
@@ -273,7 +114,12 @@ tSensor sensors [] =
       -1, 
    #endif
    Sensor1Type,Sensor1Timer,Sensor1AlarmSP,true,false,0,false,false,0,0,
-#endif
+   #ifdef Sensor1TempType 
+      Sensor1TempType, 
+   #else 
+      0, 
+   #endif
+#endif 
 #ifdef Sensor2Pin
    Sensor2Label,Sensor2Pin,
    #ifdef Sensor2AuxPin 
@@ -282,6 +128,11 @@ tSensor sensors [] =
       -1, 
    #endif
    Sensor2Type,Sensor2Timer,Sensor2AlarmSP,true,false,0,false,false,0,0,
+      #ifdef Sensor2TempType 
+      Sensor2TempType, 
+   #else 
+      0, 
+   #endif
 #endif
 #ifdef Sensor3Pin
    Sensor3Label,Sensor3Pin,
@@ -291,6 +142,11 @@ tSensor sensors [] =
       -1, 
    #endif
    Sensor3Type,Sensor3Timer,Sensor3AlarmSP,true,false,0,false,false,0,0,
+   #ifdef Sensor3TempType 
+      Sensor3TempType, 
+   #else 
+      0, 
+   #endif
 #endif
 #ifdef Sensor4Pin
    Sensor4Label,Sensor4Pin,
@@ -300,6 +156,11 @@ tSensor sensors [] =
       -1, 
    #endif
    Sensor4Type,Sensor4Timer,Sensor4AlarmSP,true,false,0,false,false,0,0,
+   #ifdef Sensor4TempType 
+      Sensor4TempType, 
+   #else 
+      0, 
+   #endif
 #endif
 #ifdef Sensor5Pin
    Sensor5Label,Sensor5Pin,
@@ -309,6 +170,11 @@ tSensor sensors [] =
       -1, 
    #endif   
    Sensor5Type,Sensor5Timer,Sensor5AlarmSP,true,false,0,false,false,0,0,
+   #ifdef Sensor5TempType 
+      Sensor5TempType, 
+   #else 
+      0, 
+   #endif
 #endif
 #ifdef Sensor6Pin
    Sensor6Label,Sensor6Pin,
@@ -318,6 +184,11 @@ tSensor sensors [] =
       -1, 
    #endif   
    Sensor6Type,Sensor6Timer,Sensor6AlarmSP,true,false,0,false,false,0,0,
+   #ifdef Sensor6TempType 
+      Sensor6TempType, 
+   #else 
+      0, 
+   #endif
 #endif
 #ifdef Sensor7Pin
    Sensor7Label,Sensor7Pin,
@@ -327,6 +198,11 @@ tSensor sensors [] =
       -1, 
    #endif   
    Sensor7Type,Sensor7Timer,Sensor7AlarmSP,true,false,0,false,false,0,0,
+   #ifdef Sensor7TempType 
+      Sensor7TempType, 
+   #else 
+      0, 
+   #endif
 #endif
 #ifdef Sensor8Pin
    Sensor8Label,Sensor8Pin,
@@ -336,6 +212,11 @@ tSensor sensors [] =
       -1, 
    #endif   
    Sensor8Type,Sensor8Timer,Sensor8AlarmSP,true,false,0,false,false,0,0,
+   #ifdef Sensor8TempType 
+      Sensor8TempType, 
+   #else 
+      0, 
+   #endif
 #endif
 };
 
@@ -462,7 +343,7 @@ void loop() {
 void checkSensors() {
    // Check all inputs for new alamrs
    activeAlarmCount = 0;
-   for (int i =0; i < numOfSensors; i++) { 
+   for (byte i =0; i < numOfSensors; i++) { 
       if (sensors[i].type == DigitalSensor){
         sensors[i].actualValue = digitalRead(sensors[i].pin);
         if (sensors[i].actualValue == sensors[i].alarmSP) {
@@ -472,7 +353,7 @@ void checkSensors() {
         }
       }
       else if (sensors[i].type == NTCSensor) {
-        sensors[i].actualValue = read_temp(sensors[i].pin, sensors[i].auxPin);
+        sensors[i].actualValue = read_temp(sensors[i].pin, sensors[i].auxPin, i);
         if (sensors[i].actualValue >= sensors[i].alarmSP) {
            setAlarm(i);
         } else {
@@ -587,38 +468,3 @@ void resetInterlock(bool useTimer) {
       }
    }
 }
-
-#ifdef NTC
-int read_temp(int NTC_Pin, int NTC_Power_Pin)
-{
-   digitalWrite(NTC_Power_Pin, HIGH);        // Power thermistor
-   int rawAdc = 0 ;
-   for (int i = 0; i< Samples; i++) {
-      rawAdc += analogRead(NTC_Pin);
-   }   
-    digitalWrite(NTC_Power_Pin, LOW);       // Unpower thermistor
-   rawAdc /= Samples; 
-   int current_celsius = 0;
-
-   byte i;
-   for (i=1; i<NUMTEMPS; i++)
-   {
-      if (temptable[i][0] > rawAdc)
-      {
-         int realtemp  = temptable[i-1][1] + (rawAdc - temptable[i-1][0]) * (temptable[i][1] - temptable[i-1][1]) / (temptable[i][0] - temptable[i-1][0]);
-         if (realtemp > 255.0)
-            realtemp = 255.0; 
-
-         current_celsius = realtemp;
-
-         break;
-      }
-   }
-
-   // Overflow: We just clamp to 500 degrees celsius
-   if (i == NUMTEMPS)
-   current_celsius = 500;
-
-   return current_celsius;
-}
-#endif
