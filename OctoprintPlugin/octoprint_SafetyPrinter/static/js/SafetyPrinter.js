@@ -168,16 +168,39 @@ $(function() {
             }
         };
 
-        self.onStartupComplete = function() {
-            // Update serial ports info. Also called when user clicks on "default Serial" combo box
-            self.availablePorts.removeAll();
-            self.availablePorts.push(new ItemViewModel("AUTO"));
-            OctoPrint.simpleApiCommand("SafetyPrinter", "getPorts");
-
-            self.showHideTab();
-
+        self.errorPopupText = gettext('Safety Printer ERROR:');
+        self.errorPopupOptions = {
+            title: gettext('ERROR'), 
+            type: 'error',           
+            icon: true,
+            hide: false,
+            confirm: {
+                confirm: true,
+                buttons: [{
+                    text: 'Ok',
+                    addClass: 'btn-block',
+                    promptTrigger: true,
+                    click: function(notice, value){
+                        notice.remove();
+                        notice.get().trigger("pnotify.cancel", [notice, value]);
+                    }
+                }]
+            },
+            buttons: {
+                closer: false,
+                sticker: false,
+            },
+            history: {
+                history: false
+            }
         };
 
+        self.onStartupComplete = function() {
+            //Show or hide terminal TAB.
+            self.showHideTab();
+        };
+
+        
         self.showHideTab = function() {
             // Shows or hides the terminal TAB on UI.
             if ((self.settingsViewModel.settings.plugins.SafetyPrinter.showTerminal() == true) && (!document.getElementById("tab_plugin_SafetyPrinter_link"))) {
@@ -185,7 +208,7 @@ $(function() {
             } else if (self.settingsViewModel.settings.plugins.SafetyPrinter.showTerminal() == false) {
                 $('#tab_plugin_SafetyPrinter_link').remove();
             }
-        }
+        };
 
         // ************* Functions to autoscrool the terminal:
 
@@ -243,6 +266,12 @@ $(function() {
         // ************* Update Settings TAB:
 
         self.onSettingsShown = function() {
+
+            // Update serial ports info. Also called when user clicks on "default Serial" combo box
+            self.availablePorts.removeAll();
+            self.availablePorts.push(new ItemViewModel("AUTO"));
+            OctoPrint.simpleApiCommand("SafetyPrinter", "getPorts");
+
             for (i = 0; i < self.numOfSensors; i++) {
                                                     
                 self.spSensorsSettings()[i].visible(self.spSensors()[i].visible());
@@ -575,6 +604,12 @@ $(function() {
                 self.FWEEPROM(data.EEPROM);
                 self.FWCommProtocol(data.CommProtocol);
                 self.FWValidVersion(data.ValidVersion);
+            }
+            else if (data.type == "error") {
+
+                self.errorPopupOptions.text = data.errorMsg;
+                self.errorPopup = new PNotify(self.errorPopupOptions);
+                self.errorPopup.get().on('pnotify.cancel');
             }
 
         };

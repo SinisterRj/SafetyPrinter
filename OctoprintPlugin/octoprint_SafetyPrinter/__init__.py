@@ -134,7 +134,7 @@ class SafetyPrinterPlugin(
         self.turnOffPrinter = self._settings.get_boolean(["turnOffPrinter"])
         self.showTerminal = self._settings.get_boolean(["showTerminal"])
         self.loggingLevel = self._settings.get_int(["loggingLevel"]) 
-        self._console_logger.setLevel(self.loggingLevel)
+        #self._console_logger.setLevel(self.loggingLevel)
         
         self._console_logger.info("User changed settings.")
         self._console_logger.debug("serialport: %s" % self._settings.get(["serialport"]))
