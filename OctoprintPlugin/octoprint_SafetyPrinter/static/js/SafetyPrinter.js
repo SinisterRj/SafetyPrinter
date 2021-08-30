@@ -394,11 +394,11 @@ $(function() {
             // Connects or disconnects to the Safety Printer Arduino
             if (self.notConnected()) {
                 self.connection("Connecting");
-                self.connectionColor("black");
+                self.connectionColor("");
                 OctoPrint.simpleApiCommand("SafetyPrinter", "reconnect");    
             } else {
                 self.connection("Disconecting");
-                self.connectionColor("black");
+                self.connectionColor("");
                 self.notConnected(true);
                 OctoPrint.simpleApiCommand("SafetyPrinter", "disconnect");    
             }
@@ -487,7 +487,7 @@ $(function() {
             // Update interlock (trip) status
                 if (data.interlockStatus == "0") {
                     self.interlock("Normal");
-                    self.interlockColor("black");
+                    self.interlockColor("");
                     self.tripBtnVisible(false)
 
                     self.navbarcolor("green");
@@ -526,7 +526,7 @@ $(function() {
             // Update connection status
                 if (data.connectionStatus) {
                     self.connection("Online");
-                    self.connectionColor("black");
+                    self.connectionColor("");
                     self.connectionCaption("Disconnect");
                     self.notConnected(false);
                     self.connectedPort(data.port);
