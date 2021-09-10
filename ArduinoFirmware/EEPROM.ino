@@ -56,16 +56,20 @@ void readEEPROMData() {
          }
          EEPROM.get(DATA_ADR, eRead );
          for(uint8_t i = 0; i < numOfSensors; i++){
-           sensors[i].enabled = eRead.sensorEnabled[i];
-           sensors[i].alarmSP = eRead.sensorAlarmSP[i];
-           if ((sensors[i].alarmSP < SPLimits[sensors[i].type][0]) || (sensors[i].alarmSP > SPLimits[sensors[i].type][1])) {
-              // Wrong value. Change back to standard:           
-              #ifdef SerialComm
-              Serial.println("Invalid EEPROM set point read (" + String(sensors[i].alarmSP) +"). Defining standard set point to " + sensors[i].label + " (" + String(defaultSensors[i].alarmSP) + ").");
-              #endif
-              sensors[i].alarmSP = defaultSensors[i].alarmSP;
-           }
-           sensors[i].timer = eRead.sensorTimer[i];
+            if (!sensors[i].forceDisable) {
+               sensors[i].enabled = eRead.sensorEnabled[i];
+            } else {
+               sensors[i].enabled = false;
+            }
+            sensors[i].alarmSP = eRead.sensorAlarmSP[i];
+            if ((sensors[i].alarmSP < SPLimits[sensors[i].type][0]) || (sensors[i].alarmSP > SPLimits[sensors[i].type][1])) {
+               // Wrong value. Change back to standard:           
+               #ifdef SerialComm
+               Serial.println("Invalid EEPROM set point read (" + String(sensors[i].alarmSP) +"). Defining standard set point to " + sensors[i].label + " (" + String(defaultSensors[i].alarmSP) + ").");
+               #endif
+               sensors[i].alarmSP = defaultSensors[i].alarmSP;
+            }
+            sensors[i].timer = eRead.sensorTimer[i];
          }
       } else {
          //Write EEPROM for the first time
