@@ -27,7 +27,7 @@
 typedef int16_t celsius_t;
 typedef struct { int16_t value; celsius_t celsius; } temp_entry_t;
 
-#define ANY_THERMISTOR_IS(n) (Sensor1TempType == n || Sensor2TempType == n || Sensor3TempType == n || Sensor4TempType == n || Sensor5TempType == n || Sensor6TempType == n || Sensor7TempType == n || Sensor8TempType == n )
+#define ANY_THERMISTOR_IS(n) (SENSOR_1_TEMP_TYPE == n || SENSOR_2_TEMP_TYPE == n || SENSOR_3_TEMP_TYPE == n || SENSOR_4_TEMP_TYPE == n || SENSOR_5_TEMP_TYPE == n || SENSOR_6_TEMP_TYPE == n || SENSOR_7_TEMP_TYPE == n || SENSOR_8_TEMP_TYPE == n )
 
 #if ANY_THERMISTOR_IS(1) // 100k bed thermistor
   #include "tables/thermistor_1.h"
@@ -142,68 +142,68 @@ typedef struct { int16_t value; celsius_t celsius; } temp_entry_t;
 #endif
 
 
-#ifdef Sensor1TempType
-  #define Sensor1_TEMPTABLE TT_NAME(Sensor1TempType)  
-  #define Sensor1_TEMPTABLE_LEN COUNT(Sensor1_TEMPTABLE)
+#ifdef SENSOR_1_TEMP_TYPE
+  #define SENSOR_1_TEMPTABLE TT_NAME(SENSOR_1_TEMP_TYPE)  
+  #define SENSOR_1_TEMPTABLE_LEN COUNT(SENSOR_1_TEMPTABLE)
 #else
-  #define Sensor1_TEMPTABLE NULL
-  #define Sensor1_TEMPTABLE_LEN 0
+  #define SENSOR_1_TEMPTABLE NULL
+  #define SENSOR_1_TEMPTABLE_LEN 0
 #endif
 
-#ifdef Sensor2TempType
-  #define Sensor2_TEMPTABLE TT_NAME(Sensor2TempType) 
-  #define Sensor2_TEMPTABLE_LEN COUNT(Sensor2_TEMPTABLE) 
+#ifdef SENSOR_2_TEMP_TYPE
+  #define SENSOR_2_TEMPTABLE TT_NAME(SENSOR_2_TEMP_TYPE) 
+  #define SENSOR_2_TEMPTABLE_LEN COUNT(SENSOR_2_TEMPTABLE) 
 #else
-  #define Sensor2_TEMPTABLE NULL
-  #define Sensor2_TEMPTABLE_LEN 0
+  #define SENSOR_2_TEMPTABLE NULL
+  #define SENSOR_2_TEMPTABLE_LEN 0
 #endif
 
-#ifdef Sensor3TempType
-  #define Sensor3_TEMPTABLE TT_NAME(Sensor3TempType)  
-  #define Sensor3_TEMPTABLE_LEN COUNT(Sensor3_TEMPTABLE)
+#ifdef SENSOR_3_TEMP_TYPE
+  #define SENSOR_3_TEMPTABLE TT_NAME(SENSOR_3_TEMP_TYPE)  
+  #define SENSOR_3_TEMPTABLE_LEN COUNT(SENSOR_3_TEMPTABLE)
 #else
-  #define Sensor3_TEMPTABLE NULL
-  #define Sensor3_TEMPTABLE_LEN 0
+  #define SENSOR_3_TEMPTABLE NULL
+  #define SENSOR_3_TEMPTABLE_LEN 0
 #endif
 
-#ifdef Sensor4TempType
-  #define Sensor4_TEMPTABLE TT_NAME(Sensor4TempType) 
-  #define Sensor4_TEMPTABLE_LEN COUNT(Sensor4_TEMPTABLE) 
+#ifdef SENSOR_4_TEMP_TYPE
+  #define SENSOR_4_TEMPTABLE TT_NAME(SENSOR_4_TEMP_TYPE) 
+  #define SENSOR_4_TEMPTABLE_LEN COUNT(SENSOR_4_TEMPTABLE) 
 #else
-  #define Sensor4_TEMPTABLE NULL
-  #define Sensor4_TEMPTABLE_LEN 0
+  #define SENSOR_4_TEMPTABLE NULL
+  #define SENSOR_4_TEMPTABLE_LEN 0
 #endif
 
-#ifdef Sensor5TempType
-  #define Sensor5_TEMPTABLE TT_NAME(Sensor5TempType)  
-  #define Sensor5_TEMPTABLE_LEN COUNT(Sensor5_TEMPTABLE)
+#ifdef SENSOR_5_TEMP_TYPE
+  #define SENSOR_5_TEMPTABLE TT_NAME(SENSOR_5_TEMP_TYPE)  
+  #define SENSOR_5_TEMPTABLE_LEN COUNT(SENSOR_5_TEMPTABLE)
 #else
-  #define Sensor5_TEMPTABLE NULL
-  #define Sensor5_TEMPTABLE_LEN 0
+  #define SENSOR_5_TEMPTABLE NULL
+  #define SENSOR_5_TEMPTABLE_LEN 0
 #endif
 
-#ifdef Sensor6TempType
-  #define Sensor6_TEMPTABLE TT_NAME(Sensor6TempType)
-  #define Sensor6_TEMPTABLE_LEN COUNT(Sensor6_TEMPTABLE)  
+#ifdef SENSOR_6_TEMP_TYPE
+  #define SENSOR_6_TEMPTABLE TT_NAME(SENSOR_6_TEMP_TYPE)
+  #define SENSOR_6_TEMPTABLE_LEN COUNT(SENSOR_6_TEMPTABLE)  
 #else
-  #define Sensor6_TEMPTABLE NULL
-  #define Sensor6_TEMPTABLE_LEN 0
+  #define SENSOR_6_TEMPTABLE NULL
+  #define SENSOR_6_TEMPTABLE_LEN 0
 #endif
 
-#ifdef Sensor7TempType
-  #define Sensor7_TEMPTABLE TT_NAME(Sensor7TempType)
-  #define Sensor7_TEMPTABLE_LEN COUNT(Sensor7_TEMPTABLE)  
+#ifdef SENSOR_7_TEMP_TYPE
+  #define SENSOR_7_TEMPTABLE TT_NAME(SENSOR_7_TEMP_TYPE)
+  #define SENSOR_7_TEMPTABLE_LEN COUNT(SENSOR_7_TEMPTABLE)  
 #else
-  #define Sensor7_TEMPTABLE NULL
-  #define Sensor7_TEMPTABLE_LEN 0
+  #define SENSOR_7_TEMPTABLE NULL
+  #define SENSOR_7_TEMPTABLE_LEN 0
 #endif
 
-#ifdef Sensor8TempType
-  #define Sensor8_TEMPTABLE TT_NAME(Sensor8TempType) 
-  #define Sensor8_TEMPTABLE_LEN COUNT(Sensor8_TEMPTABLE) 
+#ifdef SENSOR_8_TEMP_TYPE
+  #define SENSOR_8_TEMPTABLE TT_NAME(SENSOR_8_TEMP_TYPE) 
+  #define SENSOR_8_TEMPTABLE_LEN COUNT(SENSOR_8_TEMPTABLE) 
 #else
-  #define Sensor8_TEMPTABLE NULL
-  #define Sensor8_TEMPTABLE_LEN 0
+  #define SENSOR_8_TEMPTABLE NULL
+  #define SENSOR_8_TEMPTABLE_LEN 0
 #endif
 
 #define _TT_NAME(_N) temptable_ ## _N
@@ -225,28 +225,28 @@ int read_temp(byte NTC_Pin, byte NTC_Power_Pin, byte sensorNumber)
     word numTemps = 0;
     switch (sensorNumber) {
         case 0:
-            numTemps = Sensor1_TEMPTABLE_LEN;
+            numTemps = SENSOR_1_TEMPTABLE_LEN;
             break;
         case 1:
-            numTemps = Sensor2_TEMPTABLE_LEN;
+            numTemps = SENSOR_2_TEMPTABLE_LEN;
             break;
         case 2:
-            numTemps = Sensor3_TEMPTABLE_LEN;
+            numTemps = SENSOR_3_TEMPTABLE_LEN;
             break;
         case 3:
-            numTemps = Sensor4_TEMPTABLE_LEN;
+            numTemps = SENSOR_4_TEMPTABLE_LEN;
             break;
         case 4:
-            numTemps = Sensor5_TEMPTABLE_LEN;
+            numTemps = SENSOR_5_TEMPTABLE_LEN;
             break;
         case 5:
-            numTemps = Sensor6_TEMPTABLE_LEN;
+            numTemps = SENSOR_6_TEMPTABLE_LEN;
             break;
         case 6:
-            numTemps = Sensor7_TEMPTABLE_LEN;
+            numTemps = SENSOR_7_TEMPTABLE_LEN;
             break;
         case 7:
-            numTemps = Sensor8_TEMPTABLE_LEN;
+            numTemps = SENSOR_8_TEMPTABLE_LEN;
             break;
     }
 
@@ -257,67 +257,67 @@ int read_temp(byte NTC_Pin, byte NTC_Power_Pin, byte sensorNumber)
     {      
         switch (sensorNumber) {
         case 0:
-            #ifdef Sensor1TempType
-                t[0].value =    PGM_RD_W(Sensor1_TEMPTABLE[i-1].value);
-                t[0].celsius =  PGM_RD_W(Sensor1_TEMPTABLE[i-1].celsius);
-                t[1].value =    PGM_RD_W(Sensor1_TEMPTABLE[i].value);
-                t[1].celsius =  PGM_RD_W(Sensor1_TEMPTABLE[i].celsius);
+            #ifdef SENSOR_1_TEMP_TYPE
+                t[0].value =    PGM_RD_W(SENSOR_1_TEMPTABLE[i-1].value);
+                t[0].celsius =  PGM_RD_W(SENSOR_1_TEMPTABLE[i-1].celsius);
+                t[1].value =    PGM_RD_W(SENSOR_1_TEMPTABLE[i].value);
+                t[1].celsius =  PGM_RD_W(SENSOR_1_TEMPTABLE[i].celsius);
             #endif           
             break;
         case 1:
-            #ifdef Sensor2TempType
-                t[0].value =    PGM_RD_W(Sensor2_TEMPTABLE[i-1].value);
-                t[0].celsius =  PGM_RD_W(Sensor2_TEMPTABLE[i-1].celsius);
-                t[1].value =    PGM_RD_W(Sensor2_TEMPTABLE[i].value);
-                t[1].celsius =  PGM_RD_W(Sensor2_TEMPTABLE[i].celsius);  
+            #ifdef SENSOR_2_TEMP_TYPE
+                t[0].value =    PGM_RD_W(SENSOR_2_TEMPTABLE[i-1].value);
+                t[0].celsius =  PGM_RD_W(SENSOR_2_TEMPTABLE[i-1].celsius);
+                t[1].value =    PGM_RD_W(SENSOR_2_TEMPTABLE[i].value);
+                t[1].celsius =  PGM_RD_W(SENSOR_2_TEMPTABLE[i].celsius);  
             #endif  
             break;
         case 2:
-            #ifdef Sensor3TempType
-                t[0].value =    PGM_RD_W(Sensor3_TEMPTABLE[i-1].value);
-                t[0].celsius =  PGM_RD_W(Sensor3_TEMPTABLE[i-1].celsius);
-                t[1].value =    PGM_RD_W(Sensor3_TEMPTABLE[i].value);
-                t[1].celsius =  PGM_RD_W(Sensor3_TEMPTABLE[i].celsius);  
+            #ifdef SENSOR_3_TEMP_TYPE
+                t[0].value =    PGM_RD_W(SENSOR_3_TEMPTABLE[i-1].value);
+                t[0].celsius =  PGM_RD_W(SENSOR_3_TEMPTABLE[i-1].celsius);
+                t[1].value =    PGM_RD_W(SENSOR_3_TEMPTABLE[i].value);
+                t[1].celsius =  PGM_RD_W(SENSOR_3_TEMPTABLE[i].celsius);  
             #endif  
             break;
         case 3:
-            #ifdef Sensor4TempType
-                t[0].value =    PGM_RD_W(Sensor4_TEMPTABLE[i-1].value);
-                t[0].celsius =  PGM_RD_W(Sensor4_TEMPTABLE[i-1].celsius);
-                t[1].value =    PGM_RD_W(Sensor4_TEMPTABLE[i].value);
-                t[1].celsius =  PGM_RD_W(Sensor4_TEMPTABLE[i].celsius); 
+            #ifdef SENSOR_4_TEMP_TYPE
+                t[0].value =    PGM_RD_W(SENSOR_4_TEMPTABLE[i-1].value);
+                t[0].celsius =  PGM_RD_W(SENSOR_4_TEMPTABLE[i-1].celsius);
+                t[1].value =    PGM_RD_W(SENSOR_4_TEMPTABLE[i].value);
+                t[1].celsius =  PGM_RD_W(SENSOR_4_TEMPTABLE[i].celsius); 
             #endif  
             break;
         case 4:
-            #ifdef Sensor5TempType
-                t[0].value =    PGM_RD_W(Sensor5_TEMPTABLE[i-1].value);
-                t[0].celsius =  PGM_RD_W(Sensor5_TEMPTABLE[i-1].celsius);
-                t[1].value =    PGM_RD_W(Sensor5_TEMPTABLE[i].value);
-                t[1].celsius =  PGM_RD_W(Sensor5_TEMPTABLE[i].celsius); 
+            #ifdef SENSOR_5_TEMP_TYPE
+                t[0].value =    PGM_RD_W(SENSOR_5_TEMPTABLE[i-1].value);
+                t[0].celsius =  PGM_RD_W(SENSOR_5_TEMPTABLE[i-1].celsius);
+                t[1].value =    PGM_RD_W(SENSOR_5_TEMPTABLE[i].value);
+                t[1].celsius =  PGM_RD_W(SENSOR_5_TEMPTABLE[i].celsius); 
             #endif  
             break;
         case 5:
-            #ifdef Sensor6TempType
-                t[0].value =    PGM_RD_W(Sensor6_TEMPTABLE[i-1].value);
-                t[0].celsius =  PGM_RD_W(Sensor6_TEMPTABLE[i-1].celsius);
-                t[1].value =    PGM_RD_W(Sensor6_TEMPTABLE[i].value);
-                t[1].celsius =  PGM_RD_W(Sensor6_TEMPTABLE[i].celsius); 
+            #ifdef SENSOR_6_TEMP_TYPE
+                t[0].value =    PGM_RD_W(SENSOR_6_TEMPTABLE[i-1].value);
+                t[0].celsius =  PGM_RD_W(SENSOR_6_TEMPTABLE[i-1].celsius);
+                t[1].value =    PGM_RD_W(SENSOR_6_TEMPTABLE[i].value);
+                t[1].celsius =  PGM_RD_W(SENSOR_6_TEMPTABLE[i].celsius); 
             #endif  
             break;
         case 6:
-            #ifdef Sensor7TempType
-                t[0].value =    PGM_RD_W(Sensor7_TEMPTABLE[i-1].value);
-                t[0].celsius =  PGM_RD_W(Sensor7_TEMPTABLE[i-1].celsius);
-                t[1].value =    PGM_RD_W(Sensor7_TEMPTABLE[i].value);
-                t[1].celsius =  PGM_RD_W(Sensor7_TEMPTABLE[i].celsius); 
+            #ifdef SENSOR_7_TEMP_TYPE
+                t[0].value =    PGM_RD_W(SENSOR_7_TEMPTABLE[i-1].value);
+                t[0].celsius =  PGM_RD_W(SENSOR_7_TEMPTABLE[i-1].celsius);
+                t[1].value =    PGM_RD_W(SENSOR_7_TEMPTABLE[i].value);
+                t[1].celsius =  PGM_RD_W(SENSOR_7_TEMPTABLE[i].celsius); 
             #endif  
             break;
         case 7:
-            #ifdef Sensor8TempType
-                t[0].value =    PGM_RD_W(Sensor8_TEMPTABLE[i-1].value);
-                t[0].celsius =  PGM_RD_W(Sensor8_TEMPTABLE[i-1].celsius);
-                t[1].value =    PGM_RD_W(Sensor8_TEMPTABLE[i].value);
-                t[1].celsius =  PGM_RD_W(Sensor8_TEMPTABLE[i].celsius);
+            #ifdef SENSOR_8_TEMP_TYPE
+                t[0].value =    PGM_RD_W(SENSOR_8_TEMPTABLE[i-1].value);
+                t[0].celsius =  PGM_RD_W(SENSOR_8_TEMPTABLE[i-1].celsius);
+                t[1].value =    PGM_RD_W(SENSOR_8_TEMPTABLE[i].value);
+                t[1].celsius =  PGM_RD_W(SENSOR_8_TEMPTABLE[i].celsius);
             #endif  
             break;
         }              
@@ -338,28 +338,28 @@ int highest_temp(byte sensorNumber) {
   word numTemps = 0;
   switch (sensorNumber) {
       case 0:
-          numTemps = Sensor1_TEMPTABLE_LEN;
+          numTemps = SENSOR_1_TEMPTABLE_LEN;
           break;
       case 1:
-          numTemps = Sensor2_TEMPTABLE_LEN;
+          numTemps = SENSOR_2_TEMPTABLE_LEN;
           break;
       case 2:
-          numTemps = Sensor3_TEMPTABLE_LEN;
+          numTemps = SENSOR_3_TEMPTABLE_LEN;
           break;
       case 3:
-          numTemps = Sensor4_TEMPTABLE_LEN;
+          numTemps = SENSOR_4_TEMPTABLE_LEN;
           break;
       case 4:
-          numTemps = Sensor5_TEMPTABLE_LEN;
+          numTemps = SENSOR_5_TEMPTABLE_LEN;
           break;
       case 5:
-          numTemps = Sensor6_TEMPTABLE_LEN;
+          numTemps = SENSOR_6_TEMPTABLE_LEN;
           break;
       case 6:
-          numTemps = Sensor7_TEMPTABLE_LEN;
+          numTemps = SENSOR_7_TEMPTABLE_LEN;
           break;
       case 7:
-          numTemps = Sensor8_TEMPTABLE_LEN;
+          numTemps = SENSOR_8_TEMPTABLE_LEN;
           break;
   }
   int maxTemp = 0;
@@ -367,58 +367,58 @@ int highest_temp(byte sensorNumber) {
   {      
     switch (sensorNumber) {
     case 0:
-      #ifdef Sensor1TempType
-        if (PGM_RD_W(Sensor1_TEMPTABLE[i].celsius) > maxTemp) {
-            maxTemp = PGM_RD_W(Sensor1_TEMPTABLE[i].celsius);
+      #ifdef SENSOR_1_TEMP_TYPE
+        if (PGM_RD_W(SENSOR_1_TEMPTABLE[i].celsius) > maxTemp) {
+            maxTemp = PGM_RD_W(SENSOR_1_TEMPTABLE[i].celsius);
         }
       #endif
       break;         
     case 1:
-      #ifdef Sensor2TempType
-        if (PGM_RD_W(Sensor2_TEMPTABLE[i].celsius) > maxTemp) {
-            maxTemp = PGM_RD_W(Sensor2_TEMPTABLE[i].celsius);
+      #ifdef SENSOR_2_TEMP_TYPE
+        if (PGM_RD_W(SENSOR_2_TEMPTABLE[i].celsius) > maxTemp) {
+            maxTemp = PGM_RD_W(SENSOR_2_TEMPTABLE[i].celsius);
         }
       #endif
       break; 
     case 2:
-      #ifdef Sensor3TempType
-        if (PGM_RD_W(Sensor3_TEMPTABLE[i].celsius) > maxTemp) {
-            maxTemp = PGM_RD_W(Sensor3_TEMPTABLE[i].celsius);
+      #ifdef SENSOR_3_TEMP_TYPE
+        if (PGM_RD_W(SENSOR_3_TEMPTABLE[i].celsius) > maxTemp) {
+            maxTemp = PGM_RD_W(SENSOR_3_TEMPTABLE[i].celsius);
         }
       #endif
       break;
     case 3:
-      #ifdef Sensor4TempType
-        if (PGM_RD_W(Sensor4_TEMPTABLE[i].celsius) > maxTemp) {
-            maxTemp = PGM_RD_W(Sensor4_TEMPTABLE[i].celsius);
+      #ifdef SENSOR_4_TEMP_TYPE
+        if (PGM_RD_W(SENSOR_4_TEMPTABLE[i].celsius) > maxTemp) {
+            maxTemp = PGM_RD_W(SENSOR_4_TEMPTABLE[i].celsius);
         }
       #endif
       break;
     case 4:
-      #ifdef Sensor5TempType
-        if (PGM_RD_W(Sensor5_TEMPTABLE[i].celsius) > maxTemp) {
-            maxTemp = PGM_RD_W(Sensor5_TEMPTABLE[i].celsius);
+      #ifdef SENSOR_5_TEMP_TYPE
+        if (PGM_RD_W(SENSOR_5_TEMPTABLE[i].celsius) > maxTemp) {
+            maxTemp = PGM_RD_W(SENSOR_5_TEMPTABLE[i].celsius);
         }
       #endif
       break;
     case 5:
-      #ifdef Sensor6TempType
-        if (PGM_RD_W(Sensor6_TEMPTABLE[i].celsius) > maxTemp) {
-            maxTemp = PGM_RD_W(Sensor6_TEMPTABLE[i].celsius);
+      #ifdef SENSOR_6_TEMP_TYPE
+        if (PGM_RD_W(SENSOR_6_TEMPTABLE[i].celsius) > maxTemp) {
+            maxTemp = PGM_RD_W(SENSOR_6_TEMPTABLE[i].celsius);
         }
       #endif
       break;
     case 6:
-      #ifdef Sensor7TempType
-        if (PGM_RD_W(Sensor7_TEMPTABLE[i].celsius) > maxTemp) {
-            maxTemp = PGM_RD_W(Sensor7_TEMPTABLE[i].celsius);
+      #ifdef SENSOR_7_TEMP_TYPE
+        if (PGM_RD_W(SENSOR_7_TEMPTABLE[i].celsius) > maxTemp) {
+            maxTemp = PGM_RD_W(SENSOR_7_TEMPTABLE[i].celsius);
         }
       #endif
       break;
     case 7:
-      #ifdef Sensor8TempType
-        if (PGM_RD_W(Sensor8_TEMPTABLE[i].celsius) > maxTemp) {
-            maxTemp = PGM_RD_W(Sensor8_TEMPTABLE[i].celsius);
+      #ifdef SENSOR_8_TEMP_TYPE
+        if (PGM_RD_W(SENSOR_8_TEMPTABLE[i].celsius) > maxTemp) {
+            maxTemp = PGM_RD_W(SENSOR_8_TEMPTABLE[i].celsius);
         }
       #endif
       break; 

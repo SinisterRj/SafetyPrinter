@@ -19,20 +19,32 @@
 
 
 // ****************************************************************************
-// General Configuration:
+// General Configurations:
 
-    #define InterlockRelayPin     6           // Arduino's Digital pin connected to the Printer's power supply relay.
-    #define InterlockPolarity     HIGH        // Change if you need to toggle the behavior of the interlock pin (if its HIGH it means that the [InterlockRelayPin] output will be LOW under normal conditions and HIGH when an interlock occurs)
+    #define INTERLOCK_RELAY_PIN     6           // Arduino's Digital pin connected to the Printer's power supply relay.
+    #define INTERLOCK_POLARITY      HIGH        // Change if you need to toggle the behavior of the interlock pin (if its HIGH it means that the [INTERLOCK_RELAY_PIN] output will be LOW under normal conditions and HIGH when an interlock occurs)
+    #define MINIMUM_INTERLOCK_DELAY 5           // Minimum amount of time (in s) that an interlock will be active (to avoid fast switch printer on and off and possible damage it)
 
-    #define ResetButtonPin        11          // Arduino's Digital pin connected to the trip reset switch.
-    #define ResetDelay            1000        // Delay for reseting the trip condition in [ms]
+    #define RESET_BUTTON_PIN        11          // Arduino's Digital pin connected to the trip reset switch (OPTIONAL).
+    #define RESET_DELAY             2500        // Delay for reseting the trip condition in [ms]
+   
+    #define ALARM_LED_PIN           10          // Arduino's Digital pin connected to the alarm indication LED (OPTIONAL).
+    #define TRIP_LED_PIN            12          // Arduino's Digital pin connected to the trip indication LED (OPTIONAL).
+    #define LED_DELAY               5000        // Led heart beat interval in [ms]
 
-    #define AlarmLedPin           10          // Arduino's Digital pin connected to the alarm indication LED.
-    #define TripLedPin            12          // Arduino's Digital pin connected to the trip indication LED.
-    #define LEDDelay              5000        // Led heart beat interval in [ms]
+    #define SERIAL_COMMM                        // Uncomment to Enable serial communications.
+    #ifdef SERIAL_COMMM
+      #define BAUD_RATE             38400       // :[2400, 9600, 19200, 38400, 57600, 115200]
+    #endif
 
-    #define SerialComm            true        // [true] to Enable serial communications.
-    #define BaudRate              115200      // :[2400, 9600, 19200, 38400, 57600, 115200, 250000, 500000, 1000000]
+    #define HAS_LCD                             // Uncomment to Enable the use of a 2x16 I2C LCD.
+    
+    #ifdef HAS_LCD
+      #define LCD_DELAY             2000        // LCD refresh rate in ms
+      #define LCD_ADDRESS           0x27        // LCD I2C address
+      #define LCD_SDA_PIN           A4          // I2C data PIN (always use this pin for Arduino Uno or Nano)
+      #define LCD_SCL_PIN           A5          // I2C clock PIN (always use this pin for Arduino Uno or Nano)
+    #endif
 
 /* 
 ****************************************************************************
@@ -42,17 +54,17 @@ Max: 8 sensors
 
 All sensors have the same structure:
 
-SensorXLabel    : Mandatory  : A string with the sensor's NAME - MAX 16 characters. Don't use ",", "#" or "$";
-SensorXPin      : Mandatory  : Arduino's pin (Analog or digital) connected to the sensor signal;
-SensorXAuxPin   : *Optional  : Arduino's digital pin to power the temperature sensor;
-SensorXType     : Mandatory  : [DigitalSensor] for On/OFF sensors or [NTCSensor] for temperature sensors (NTC thermistor type)
-SensorXTimer    : Mandatory  : Delay between the sensor signal and raising the alarm. The alarm will be raised IF the sensor signal stays in alarm condition more time than this value. Good to avoid spurious alarms. Expressed in [ms].
-SensorXAlarmSP  : Mandatory  : Alarm set point. Defines the signal condition to raise the alarm. [0] or [1] to define alarm positions on digital sensors, and a [integer] to define a high temperature on temperature sensors.
-Sensor5TempType : *Optional  : An integer number with one of temperature table calibration bellow:
+SENSOR_X_LABEL     : Mandatory  : A string with the sensor's NAME - MAX 16 characters. Don't use ",", "#", "$", ":", "<" or ">";
+SENSOR_X_PIN       : Mandatory  : Arduino's pin (Analog or digital) connected to the sensor signal;
+SENSOR_X_AUX_PIN   : *Optional  : Arduino's digital pin to power the temperature sensor;
+SENSOR_X_TYPE      : Mandatory  : [DIGIGTAL_SENSOR] for On/OFF sensors or [NTC_SENSOR] for temperature sensors (NTC thermistor type)
+SENSOR_X_TIMER     : Mandatory  : Delay between the sensor signal and raising the alarm. The alarm will be raised IF the sensor signal stays in alarm condition more time than this value. Good to avoid spurious alarms. Expressed in [ms].
+SENSOR_X_ALARM_SP  : Mandatory  : Alarm set point. Defines the signal condition to raise the alarm. [HIGH] or [LOW] to define alarm positions on digital sensors, and a [integer] to define a high temperature on temperature sensors.
+SENSOR_5_TEMP_TYPE : *Optional  : An integer number with one of temperature table calibration bellow:
 
  ****************************************************************************
  *    NTC thermistor temperature equivalence (calibration) table:
- *    --NORMAL IS 4.7kohm PULLUP!-- 1kohm pullup can be used on hotend sensor, using correct resistor and table
+ *    --NORMAL IS 4.7kohm PULLUP!-- 1kohm pullup can be used on hotend SENSOR_, using correct resistor and table
  * 
  *     0 : not used
  *     1 : 100k thermistor - best choice for EPCOS 100k (4.7k pullup)
@@ -79,7 +91,7 @@ Sensor5TempType : *Optional  : An integer number with one of temperature table c
  *    30 : Kis3d Silicone mat 24V 200W/300W with 6mm Precision cast plate (EN AW 5083)
  *    60 : 100k Maker's Tool Works Kapton Bed Thermistor beta=3950
  *    61 : Formbot 350°C Thermistor
- *    66 : 4.7M High Temperature thermistor from Dyze Design
+ *    66 : 4.7M High _TEMPerature thermistor from Dyze Design
  *    67 :  SliceEngineering 450 °C Thermistor
  *    70 : the 100K thermistor found in the bq Hephestos 2
  *    75 : 100k Generic Silicon Heat Pad with NTC 100K MGB18-104F39050L32 thermistor
@@ -107,68 +119,68 @@ Sensor5TempType : *Optional  : An integer number with one of temperature table c
  *
 */
 
-    #define Sensor1Label           "Flame 1"
-    #define Sensor1Pin             9
-  //#define Sensor1AuxPin          0
-    #define Sensor1Type            DigitalSensor
-    #define Sensor1Timer           250
-    #define Sensor1AlarmSP         0
-  //#define Sensor1TempType        1
+    #define SENSOR_1_LABEL           "Flame 1"       
+    #define SENSOR_1_PIN              9                
+  //#define SENSOR_1_AUX_PIN          0                
+    #define SENSOR_1_TYPE             DIGIGTAL_SENSOR
+    #define SENSOR_1_TIMER            250              
+    #define SENSOR_1_ALARM_SP         LOW              
+  //#define SENSOR_1_TEMP_TYPE        1                
 
-    #define Sensor2Label          "Flame 2"
-    #define Sensor2Pin             8
-  //#define Sensor2AuxPin          0
-    #define Sensor2Type            DigitalSensor
-    #define Sensor2Timer           250
-    #define Sensor2AlarmSP         0
-  //#define Sensor2TempType        1
+    #define SENSOR_2_LABEL            "Flame 2"
+    #define SENSOR_2_PIN              8
+  //#define SENSOR_2_AUX_PIN          0
+    #define SENSOR_2_TYPE             DIGIGTAL_SENSOR
+    #define SENSOR_2_TIMER            250
+    #define SENSOR_2_ALARM_SP         LOW
+  //#define SENSOR_2_TEMP_TYPE        1
 
-    #define Sensor3Label           "Emergency Button"
-    #define Sensor3Pin             5
-  //#define Sensor3AuxPin          0
-    #define Sensor3Type            DigitalSensor
-    #define Sensor3Timer           250
-    #define Sensor3AlarmSP         0
-  //#define Sensor3TempType        1
+    #define SENSOR_3_LABEL            "Emergency Button"
+    #define SENSOR_3_PIN              5
+  //#define SENSOR_3_AUX_PIN          0
+    #define SENSOR_3_TYPE             DIGIGTAL_SENSOR
+    #define SENSOR_3_TIMER            250
+    #define SENSOR_3_ALARM_SP         LOW
+  //#define SENSOR_3_TEMP_TYPE        1
 
-    #define Sensor4Label           "Smoke"
-    #define Sensor4Pin             7
-  //#define Sensor4AuxPin          0
-    #define Sensor4Type            DigitalSensor
-    #define Sensor4Timer           250
-    #define Sensor4AlarmSP         0
-  //#define Sensor4TempType        1
+    #define SENSOR_4_LABEL            "Smoke"
+    #define SENSOR_4_PIN              7
+  //#define SENSOR_4_AUX_PIN          0
+    #define SENSOR_4_TYPE             DIGIGTAL_SENSOR
+    #define SENSOR_4_TIMER            250
+    #define SENSOR_4_ALARM_SP         LOW
+  //#define SENSOR_4_TEMP_TYPE        1
 
-    #define Sensor5Label           "HotEnd Temp."
-    #define Sensor5Pin             A7
-    #define Sensor5AuxPin          3
-    #define Sensor5Type            NTCSensor
-    #define Sensor5Timer           250
-    #define Sensor5AlarmSP         290
-    #define Sensor5TempType        1
+    #define SENSOR_5_LABEL            "HotEnd Temp."
+    #define SENSOR_5_PIN              A6
+    #define SENSOR_5_AUX_PIN          2
+    #define SENSOR_5_TYPE             NTC_SENSOR
+    #define SENSOR_5_TIMER            250
+    #define SENSOR_5_ALARM_SP         290
+    #define SENSOR_5_TEMP_TYPE        1
 
-    #define Sensor6Label           "Bed Temp."
-    #define Sensor6Pin             A6
-    #define Sensor6AuxPin          2
-    #define Sensor6Type            NTCSensor
-    #define Sensor6Timer           250
-    #define Sensor6AlarmSP         150
-    #define Sensor6TempType        1
+    #define SENSOR_6_LABEL            "Bed Temp."
+    #define SENSOR_6_PIN              A7
+    #define SENSOR_6_AUX_PIN          3
+    #define SENSOR_6_TYPE             NTC_SENSOR
+    #define SENSOR_6_TIMER            250
+    #define SENSOR_6_ALARM_SP         150
+    #define SENSOR_6_TEMP_TYPE        1
     /*
-    #define Sensor7Label           "Spare"
-    #define Sensor7Pin             1
-    #define Sensor7AuxPin          0
-    #define Sensor7Type            DigitalSensor
-    #define Sensor7Timer           250
-    #define Sensor7AlarmSP         0
-    #define Sensor7TempType        1
+    #define SENSOR_7_LABEL            "Spare"
+    #define SENSOR_7_PIN              1
+    #define SENSOR_7_AUX_PIN          0
+    #define SENSOR_7_TYPE             DIGIGTAL_SENSOR
+    #define SENSOR_7_TIMER            250
+    #define SENSOR_7_ALARM_SP         LOW
+    #define SENSOR_7_TEMP_TYPE        1
     */
     /*
-    #define Sensor8Label           "Spare"
-    #define Sensor8Pin             1
-    #define Sensor8AuxPin          0
-    #define Sensor8Type            DigitalSensor
-    #define Sensor8Timer           250
-    #define Sensor8AlarmSP         0
-    #define Sensor8TempType        1
+    #define SENSOR_8_LABEL            "Spare"
+    #define SENSOR_8_PIN              1
+    #define SENSOR_8_AUX_PIN          0
+    #define SENSOR_8_TYPE             DIGIGTAL_SENSOR
+    #define SENSOR_8_TIMER            250
+    #define SENSOR_8_ALARM_SP         LOW
+    #define SENSOR_8_TEMP_TYPE        1
     */
