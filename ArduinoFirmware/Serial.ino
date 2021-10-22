@@ -18,7 +18,7 @@
  * 
  * WARNIG: DON'T CHANGE ANYTHING IN THIS FILE! ALL CONFIGURATIONS SHOULD BE DONE IN "Configurations.h".
 */
-#ifdef SERIAL_COMMM
+#ifdef HAS_SERIAL_COMM
 
 #include <util/crc16.h>
 #include <string.h>

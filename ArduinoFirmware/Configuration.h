@@ -32,12 +32,12 @@
     #define TRIP_LED_PIN            12          // Arduino's Digital pin connected to the trip indication LED (OPTIONAL).
     #define LED_DELAY               5000        // Led heart beat interval in [ms]
 
-    #define SERIAL_COMMM                        // Uncomment to Enable serial communications.
-    #ifdef SERIAL_COMMM
+    #define HAS_SERIAL_COMM                     // Uncomment to Enable serial communications. Needed to interface with Octoprint plugin (OPTIONAL)
+    #ifdef HAS_SERIAL_COMM
       #define BAUD_RATE             38400       // :[2400, 9600, 19200, 38400, 57600, 115200]
     #endif
 
-    #define HAS_LCD                             // Uncomment to Enable the use of a 2x16 I2C LCD.
+    #define HAS_LCD                             // Uncomment to Enable the use of a 2x16 I2C LCD. (OPTIONAL)
     
     #ifdef HAS_LCD
       #define LCD_DELAY             2000        // LCD refresh rate in ms

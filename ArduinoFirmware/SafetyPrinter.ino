@@ -280,10 +280,8 @@ long lTMax = 0;
 long lTNow, lTLastMax, lTLastSum;
 bool memWrng, tempWrng, voltWrng, execWrng  = false;
 byte triggerIndex = 255;
-
-#ifdef RESET_BUTTON_PIN
 bool resetBtnPressed = false;
-#endif
+
 
 #ifdef DEBUG
    tTimer debugTimer;
@@ -299,7 +297,7 @@ void setup() {
    //Enabling watchdog timer 4s  
    wdt_enable(WDTO_4S);
    
-   #ifdef SERIAL_COMMM
+   #ifdef HAS_SERIAL_COMM
       Serial.begin(BAUD_RATE);
       Serial.println(F("booting..."));    
    #endif
@@ -375,7 +373,7 @@ void setup() {
       startTimer(&LCDTimer.startMs,&LCDTimer.started);
    #endif
 
-   #ifdef SERIAL_COMMM
+   #ifdef HAS_SERIAL_COMM
       Serial.println(F("Safety Printer MCU ver." VERSION ", release date: " RELEASEDATE)); // Boot end msg. Octoprint Plug in looking for this msg in order to indicate that the arduino ir ready to receive commands.
    #endif
 }
@@ -389,7 +387,9 @@ void loop() {
    checkSensors();
 
    //Verify reset button
-   checkResetButton();
+   #ifdef RESET_BUTTON_PIN
+      checkResetButton();
+   #endif
 
    //Update Interlock and Alarm indication status led
    #ifdef ALARM_LED_PIN
@@ -426,7 +426,7 @@ void loop() {
    #endif 
   
    //Manage Serial communications
-   #ifdef SERIAL_COMMM
+   #ifdef HAS_SERIAL_COMM
       // Receive commands from PC
       recvCommandWithStartEndMarkers(); 
    #endif
@@ -544,7 +544,7 @@ void validateSensorsInfo() {
          sensors[i].highSP = highest_temp(i);
       }   
       if ((sensors[i].alarmSP < sensors[i].lowSP) || (sensors[i].alarmSP > sensors[i].highSP)) {
-         #ifdef SERIAL_COMMM
+         #ifdef HAS_SERIAL_COMM
             Serial.print(sensors[i].label);
             Serial.print(F(": Wrong sensor ALARM SET POINT ("));
             Serial.print(sensors[i].alarmSP);
@@ -567,7 +567,7 @@ void validateSensorsInfo() {
                if (sensors[x].pin == usedPins[i] || sensors[x].auxPin == usedPins[i]) {
                   sensors[x].enabled = false;
                   sensors[x].forceDisable = true;
-                  #ifdef SERIAL_COMMM
+                  #ifdef HAS_SERIAL_COMM
                      Serial.print(sensors[x].label);
                      Serial.println(F(": Multiple assings to the same I/O pin. Check your Configuration.h file. Sensor disabled."));
                   #endif
