@@ -43,33 +43,50 @@ void readEEPROMData() {
    // Check EEPROM for the last interlock state
    tEEPROM eRead;
    unsigned long saved_EEPROM_CRC, actual_EEPROM_CRC;
+   bool firstLoop = true;
    EEPROM.get(CRC_ADR,saved_EEPROM_CRC);
    actual_EEPROM_CRC = eeprom_crc();
    if (saved_EEPROM_CRC == actual_EEPROM_CRC) {
       if (EEPROM.read(VERSION_ADR) == EEPROMVERSION) { // Verify if there is EEPROMVERSION on EEPROM address VERSION_ADR (the standard is 255 when its blank)
+
+         EEPROM.get(DATA_ADR, eRead );
+         for(uint8_t i = 0; i < numOfSensors; i++){
+            if (!sensors[i].forceDisable) {
+               sensors[i].enabled = eRead.sensorEnabled[i];
+            } else {
+               sensors[i].enabled = false;
+            }
+            sensors[i].alarmSP = eRead.sensorAlarmSP[i];
+            if ((sensors[i].alarmSP < sensors[i].lowSP) || (sensors[i].alarmSP > sensors[i].highSP)) {
+               // Wrong value. Change back to standard:           
+               #ifdef HAS_SERIAL_COMM
+               Serial.println("Invalid EEPROM set point read (" + String(sensors[i].alarmSP) +"). Defining standard set point to " + sensors[i].label + " (" + String(defaultSensors[i].alarmSP) + ").");
+               #endif
+               sensors[i].alarmSP = defaultSensors[i].alarmSP;
+            }
+            sensors[i].timer = eRead.sensorTimer[i];
+         }
+         
          interlockStatus = EEPROM.read(INTERLOCK_ADR);
-         //interlockStatus = eRead.interlockStatus;
          if (interlockStatus) {
            interlock(false,0);
          } else {
-           resetInterlock(false);
-         }
-         EEPROM.get(DATA_ADR, eRead );
-         for(uint8_t i = 0; i < numOfSensors; i++){
-           sensors[i].enabled = eRead.sensorEnabled[i];
-           sensors[i].alarmSP = eRead.sensorAlarmSP[i];
-           if ((sensors[i].alarmSP < SPLimits[sensors[i].type][0]) || (sensors[i].alarmSP > SPLimits[sensors[i].type][1])) {
-              // Wrong value. Change back to standard:           
-              #ifdef SerialComm
-              Serial.println("Invalid EEPROM set point read (" + String(sensors[i].alarmSP) +"). Defining standard set point to " + sensors[i].label + " (" + String(defaultSensors[i].alarmSP) + ").");
-              #endif
-              sensors[i].alarmSP = defaultSensors[i].alarmSP;
+           while (!resetInterlock(false)) {
+              if (firstLoop) {
+                  firstLoop = false;
+                  #ifdef HAS_SERIAL_COMM
+                  Serial.print(F("Waiting "));
+                  Serial.print(MINIMUM_INTERLOCK_DELAY);
+                  Serial.println(F("s to turn on printer."));
+                  #endif
+              }
+              delay(250);
+              wdt_reset();
            }
-           sensors[i].timer = eRead.sensorTimer[i];
          }
       } else {
          //Write EEPROM for the first time
-         #ifdef SerialComm
+         #ifdef HAS_SERIAL_COMM
          Serial.println(F("Wrong EEPROM version. Overwriting EEPROM with standard values."));
          #endif
          writeEEPROMData();
@@ -77,7 +94,7 @@ void readEEPROMData() {
    }
    else {
          //EEPROM corrupted. Write standard values
-         #ifdef SerialComm
+         #ifdef HAS_SERIAL_COMM
          Serial.println(F("EEPROM corrupted. Overwriting EEPROM with standard values."));
          #endif
          writeEEPROMData();    

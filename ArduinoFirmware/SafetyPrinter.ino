@@ -15,7 +15,20 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  * 
- * WARNIG: DON'T CHANGE ANYTHING IN THIS FILE! ALL CONFIGURATIONS SHOULD BE DONE IN "Configurations.h".
+ * WARNING: DON'T CHANGE ANYTHING IN THIS FILE! ALL CONFIGURATIONS SHOULD BE DONE IN "Configurations.h".
+ * 
+ * Version 0.2.5
+ * 10/21/2021
+ * Changes:
+ * 1) Include CRC check on <r1>,<r2> and <r4> responses;
+ * 2) Organize some thermisotr tables and Configuration.h file;
+ * 3) Check for some errors on sensor configuration and disable it.
+ * 4) Include commands alias;
+ * 5) Include free memory, voltage, temperature and cycle time monitoring;
+ * 6) Include I2C 16x2 LCD support
+ * 7) Creates "lowSP" and "highSP" sensor values (now user can choose different sensors);
+ * 8) <R2> now sends "forceEnable", "lowSP" and "highSP" values;
+ * 9) Include a timer to avoid sucessive trips/resets or turns on/off on printer and damage it.
  * 
  * Version 0.2.4
  * 07/30/2021
@@ -37,7 +50,7 @@
  * 3) Include command C5 to turn off the printer.
  * 4) Commands and arguments are now case insensitive.
  * 5) Included command <c7> to change sensor timers.
- * 6) included command <c8> to return sensors configuration (enabled, alarm set point and timer) back to original values.
+ * 6) included command <c1> to return sensors configuration (enabled, alarm set point and timer) back to original values.
  * 7) Fix a bug that interpretates no argument as argument 0 in some commands.
  * 
  * Version: 0.2.1
@@ -50,26 +63,41 @@
  * 5) Included command <r4> to return firmware version and release date
  * 
  */
-
-#define DigitalSensor         0           // Internal use, don't change
-#define NTCSensor             1           // Internal use, don't change
  
-#include <Arduino.h>
-#include <avr/wdt.h>      //Watchdog
-#include <EEPROM.h>       //EEPROM access
+//#define DEBUG   
+#ifdef DEBUG                                // Just for debug porpouses
+  #define DEBUG_DELAY           1000        // Debug timer renew
+#endif
+
+#define LOOP_TIME_SAMPLES       25          // Number of samples to calculate main loop time.
+
+#define DIGIGTAL_SENSOR         0           // Internal use, don't change
+#define NTC_SENSOR              1           // Internal use, don't change
+ 
+#include <Arduino.h>                        // Needed to compile with Platformio
+#include <avr/wdt.h>                        // Watchdog
+#include <EEPROM.h>                         // EEPROM access
 #include "Configuration.h"
+
+#ifdef HAS_LCD
+  #include <Wire.h>
+  #include <LiquidCrystal_I2C.h>
+#endif
 
 // *************************** Don't change after this line **********************************
 // *******************************************************************************************
 
-#define VERSION         "0.2.4"
-#define RELEASEDATE     "Jul 30 2021"
-#define EEPROMVERSION   3            // Incremental BYTE. Firmware overwrites the EEPROM with standard values if the number readed from EEPROM is different. change everytime that EEPROM structure is changed.
-#define COMMPROTOCOL    1            // Incremental BYTE. Octoprint plugin communication protocol version. 
+#define VERSION                 "0.2.5"
+#define RELEASEDATE             "Oct 21 2021"
+#define EEPROMVERSION           3            // Incremental BYTE. Firmware overwrites the EEPROM with standard values if the number readed from EEPROM is different. change everytime that EEPROM structure is changed.
+#define COMMPROTOCOL            3            // Incremental BYTE. Octoprint plugin communication protocol version. 
+
+char forb_chars[] = {',','#','$',':','<','>'};   // forbiden characters for sensor names
+//int availableThermistors[] = {1,2,3,4,5,6,7,8,9,10,11,12,13,15,17,18,20,21,22,23,30,51,52,55,60,61,66,67,70,71,75,99,331,332,998,999};
  
 typedef struct
 {
-  String label;
+  char label[17];
   int8_t pin;
   int8_t auxPin;
   uint8_t type;
@@ -78,10 +106,10 @@ typedef struct
   bool enabled;
   bool active;
   int actualValue;
-  bool spare1;
-  bool spare2;
-  int spare3;
-  int spare4;
+  bool forceDisable;
+  bool trigger;
+  int lowSP;
+  int highSP;
   int16_t tTI; //temp table index
 } tSensor;
 
@@ -94,130 +122,130 @@ typedef struct
 
 /* ****************************************************************************
  Declare all sensors using the above template
- "label",pin number,delay,enabled(always true),alarmStatus(always false),spare1,spare2,spare3,spare4
+ "label",pin number,delay,enabled,alarmStatus,forceDisable,trigger,spare3,spare4
 
  Label: the name of the sensor, that will help you to intentify it;
  Pin number: the pin wher it is connected;
  Delay: The timer delay to start the interlock from this sensor. If two or more sensors are active, the delay is bypassed; 
- Normal Condition: The variable status during normal operation. For analog varaibles, use the greater normal value (i.e. 279 if you want to trip with 280)
+ Normal Condition: The variable status during normal operation. For analog variables, use the greater normal value (i.e. 279 if you want to trip with 280)
  enabled, alarmStatus: Internal use.
 
 */
 
 tSensor sensors [] =
 {   
-#ifdef Sensor1Label
-   Sensor1Label,Sensor1Pin,
-   #ifdef Sensor1AuxPin 
-      Sensor1AuxPin, 
+#ifdef SENSOR_1_LABEL
+   SENSOR_1_LABEL,SENSOR_1_PIN,
+   #ifdef SENSOR_1_AUX_PIN 
+      SENSOR_1_AUX_PIN, 
    #else 
       -1, 
    #endif
-   Sensor1Type,Sensor1Timer,Sensor1AlarmSP,true,false,0,false,false,0,0,
-   #ifdef Sensor1TempType 
-      Sensor1TempType, 
+   SENSOR_1_TYPE,SENSOR_1_TIMER,SENSOR_1_ALARM_SP,true,false,0,false,false,0,1,
+   #ifdef SENSOR_1_TEMP_TYPE 
+      0,highest_temp(1),SENSOR_1_TEMP_TYPE, 
    #else 
       0, 
    #endif
 #endif 
-#ifdef Sensor2Pin
-   Sensor2Label,Sensor2Pin,
-   #ifdef Sensor2AuxPin 
-      Sensor2AuxPin, 
+#ifdef SENSOR_2_LABEL
+   SENSOR_2_LABEL,SENSOR_2_PIN,
+   #ifdef SENSOR_2_AUX_PIN 
+      SENSOR_2_AUX_PIN, 
    #else 
       -1, 
    #endif
-   Sensor2Type,Sensor2Timer,Sensor2AlarmSP,true,false,0,false,false,0,0,
-      #ifdef Sensor2TempType 
-      Sensor2TempType, 
+   SENSOR_2_TYPE,SENSOR_2_TIMER,SENSOR_2_ALARM_SP,true,false,0,false,false,0,1,
+   #ifdef SENSOR_2_TEMP_TYPE 
+      SENSOR_2_TEMP_TYPE, 
    #else 
       0, 
    #endif
-#endif
-#ifdef Sensor3Pin
-   Sensor3Label,Sensor3Pin,
-   #ifdef Sensor3AuxPin 
-      Sensor3AuxPin, 
+#endif 
+#ifdef SENSOR_3_LABEL
+   SENSOR_3_LABEL,SENSOR_3_PIN,
+   #ifdef SENSOR_3_AUX_PIN 
+      SENSOR_3_AUX_PIN, 
    #else 
       -1, 
    #endif
-   Sensor3Type,Sensor3Timer,Sensor3AlarmSP,true,false,0,false,false,0,0,
-   #ifdef Sensor3TempType 
-      Sensor3TempType, 
+   SENSOR_3_TYPE,SENSOR_3_TIMER,SENSOR_3_ALARM_SP,true,false,0,false,false,0,1,
+   #ifdef SENSOR_3_TEMP_TYPE 
+      SENSOR_3_TEMP_TYPE, 
    #else 
       0, 
    #endif
-#endif
-#ifdef Sensor4Pin
-   Sensor4Label,Sensor4Pin,
-   #ifdef Sensor4AuxPin 
-      Sensor4AuxPin, 
+#endif 
+#ifdef SENSOR_4_LABEL
+   SENSOR_4_LABEL,SENSOR_4_PIN,
+   #ifdef SENSOR_4_AUX_PIN 
+      SENSOR_4_AUX_PIN, 
    #else 
       -1, 
    #endif
-   Sensor4Type,Sensor4Timer,Sensor4AlarmSP,true,false,0,false,false,0,0,
-   #ifdef Sensor4TempType 
-      Sensor4TempType, 
+   SENSOR_4_TYPE,SENSOR_4_TIMER,SENSOR_4_ALARM_SP,true,false,0,false,false,0,1,
+   #ifdef SENSOR_4_TEMP_TYPE 
+      SENSOR_4_TEMP_TYPE, 
    #else 
       0, 
    #endif
-#endif
-#ifdef Sensor5Pin
-   Sensor5Label,Sensor5Pin,
-   #ifdef Sensor5AuxPin 
-      Sensor5AuxPin, 
+#endif 
+#ifdef SENSOR_5_LABEL
+   SENSOR_5_LABEL,SENSOR_5_PIN,
+   #ifdef SENSOR_5_AUX_PIN 
+      SENSOR_5_AUX_PIN, 
    #else 
       -1, 
-   #endif   
-   Sensor5Type,Sensor5Timer,Sensor5AlarmSP,true,false,0,false,false,0,0,
-   #ifdef Sensor5TempType 
-      Sensor5TempType, 
+   #endif
+   SENSOR_5_TYPE,SENSOR_5_TIMER,SENSOR_5_ALARM_SP,true,false,0,false,false,0,1,
+   #ifdef SENSOR_5_TEMP_TYPE 
+      SENSOR_5_TEMP_TYPE, 
    #else 
       0, 
    #endif
-#endif
-#ifdef Sensor6Pin
-   Sensor6Label,Sensor6Pin,
-   #ifdef Sensor6AuxPin 
-      Sensor6AuxPin, 
+#endif 
+#ifdef SENSOR_6_LABEL
+   SENSOR_6_LABEL,SENSOR_6_PIN,
+   #ifdef SENSOR_6_AUX_PIN 
+      SENSOR_6_AUX_PIN, 
    #else 
       -1, 
-   #endif   
-   Sensor6Type,Sensor6Timer,Sensor6AlarmSP,true,false,0,false,false,0,0,
-   #ifdef Sensor6TempType 
-      Sensor6TempType, 
+   #endif
+   SENSOR_6_TYPE,SENSOR_6_TIMER,SENSOR_6_ALARM_SP,true,false,0,false,false,0,1,
+   #ifdef SENSOR_6_TEMP_TYPE 
+      SENSOR_6_TEMP_TYPE, 
    #else 
       0, 
    #endif
-#endif
-#ifdef Sensor7Pin
-   Sensor7Label,Sensor7Pin,
-   #ifdef Sensor7AuxPin 
-      Sensor7AuxPin, 
+#endif 
+#ifdef SENSOR_7_LABEL
+   SENSOR_7_LABEL,SENSOR_7_PIN,
+   #ifdef SENSOR_7_AUX_PIN 
+      SENSOR_7_AUX_PIN, 
    #else 
       -1, 
-   #endif   
-   Sensor7Type,Sensor7Timer,Sensor7AlarmSP,true,false,0,false,false,0,0,
-   #ifdef Sensor7TempType 
-      Sensor7TempType, 
+   #endif
+   SENSOR_7_TYPE,SENSOR_7_TIMER,SENSOR_7_ALARM_SP,true,false,0,false,false,0,1,
+   #ifdef SENSOR_7_TEMP_TYPE 
+      SENSOR_7_TEMP_TYPE, 
    #else 
       0, 
    #endif
-#endif
-#ifdef Sensor8Pin
-   Sensor8Label,Sensor8Pin,
-   #ifdef Sensor8AuxPin 
-      Sensor8AuxPin, 
+#endif 
+#ifdef SENSOR_8_LABEL
+   SENSOR_8_LABEL,SENSOR_8_PIN,
+   #ifdef SENSOR_8_AUX_PIN 
+      SENSOR_8_AUX_PIN, 
    #else 
       -1, 
-   #endif   
-   Sensor8Type,Sensor8Timer,Sensor8AlarmSP,true,false,0,false,false,0,0,
-   #ifdef Sensor8TempType 
-      Sensor8TempType, 
+   #endif
+   SENSOR_8_TYPE,SENSOR_8_TIMER,SENSOR_8_ALARM_SP,true,false,0,false,false,0,1,
+   #ifdef SENSOR_8_TEMP_TYPE 
+      SENSOR_8_TEMP_TYPE, 
    #else 
       0, 
    #endif
-#endif
+#endif 
 };
 
 tDefault defaultSensors[(sizeof(sensors) / sizeof(sensors[0]))];
@@ -228,11 +256,12 @@ typedef struct
   bool started = false;
 } tTimer;
 
+/*
 //Defines the SP limits for each of the sensor types. 
-const int SPLimits[2][2] = {
+int SPLimits[2][2] = {
   { 0, 1 },   // type 0 = Digital
   { 0, 300 }  // type 1 = NTC temperature
-};
+};*/
 bool interlockStatus = false;
 bool interlockStatusChanged = false;
 bool activeFireAlarm = false;
@@ -242,109 +271,318 @@ bool statusLed = true;
 unsigned int alarmCounter = 0;
 uint8_t activeAlarmCount = 0;
 uint8_t numOfSensors = 0;
-tTimer interlockTimer, resetTimer, ledTimer;
+tTimer interlockTimer, resetTimer, ledTimer, minimumInterlockTimer;
 bool printerPowered = true;
+unsigned int lTLastRecord = 0;
+long lTStartTime;
+long lTSum = 0;
+long lTMax = 0;
+long lTNow, lTLastMax, lTLastSum;
+bool memWrng, tempWrng, voltWrng, execWrng  = false;
+byte triggerIndex = 255;
+bool resetBtnPressed = false;
+
+
+#ifdef DEBUG
+   tTimer debugTimer;
+#endif
+
+#ifdef HAS_LCD
+  tTimer LCDTimer;
+  bool tripLCD = false;
+#endif
 
 void setup() {
 
-  //Enabling watchdog timer 4s  
-  wdt_enable(WDTO_4S);
+   //Enabling watchdog timer 4s  
+   wdt_enable(WDTO_4S);
+   
+   #ifdef HAS_SERIAL_COMM
+      Serial.begin(BAUD_RATE);
+      Serial.println(F("booting..."));    
+   #endif
 
-  #ifdef SerialComm
-  Serial.begin(BaudRate);
-  #endif
-
-  //Pins configuration
+   #ifdef HAS_LCD
+      lcd_Init();
+   #endif
+   //Pins configuration
   
-  pinMode(AlarmLedPin, OUTPUT);
-  digitalWrite(AlarmLedPin, HIGH); //Alarm led test 
-
-  pinMode(TripLedPin, OUTPUT);
-  digitalWrite(TripLedPin, HIGH);  //Trip led test
+   #ifdef ALARM_LED_PIN
+      pinMode(ALARM_LED_PIN, OUTPUT);
+      digitalWrite(ALARM_LED_PIN, HIGH); //Alarm led test 
+   #endif
+   
+   #ifdef TRIP_LED_PIN
+      pinMode(TRIP_LED_PIN, OUTPUT);
+      digitalWrite(TRIP_LED_PIN, HIGH);  //Trip led test
+   #endif
   
-  pinMode(ResetButtonPin, INPUT_PULLUP);
+   #ifdef RESET_BUTTON_PIN
+      pinMode(RESET_BUTTON_PIN, INPUT_PULLUP);
+   #endif
 
-  pinMode(InterlockRelayPin, OUTPUT);
-  digitalWrite(InterlockRelayPin, LOW);
+   pinMode(INTERLOCK_RELAY_PIN, OUTPUT);
+   digitalWrite(INTERLOCK_RELAY_PIN, INTERLOCK_POLARITY);
+   startTimer(&minimumInterlockTimer.startMs,&minimumInterlockTimer.started);
+
+   numOfSensors = (sizeof(sensors) / sizeof(sensors[0]));
   
-  numOfSensors = (sizeof(sensors) / sizeof(sensors[0]));
-  //Set sensor input pins
-  for (int i =0; i < numOfSensors; i++) { 
-     if (sensors[i].enabled) 
-     {
-        pinMode(sensors[i].pin, INPUT);
-        if (sensors[i].auxPin != -1) {
-           pinMode(sensors[i].auxPin, OUTPUT);  // Configure power pin. This pin will be used to power the thermistor
-        }
-     }          
-  }
-  delay(500);
+   // check sensor configuration
+   validateSensorsInfo();
+   
+   //Set sensor input pins
+   for (int i =0; i < numOfSensors; i++) { 
+      if (sensors[i].enabled && !sensors[i].forceDisable) 
+      {
+         pinMode(sensors[i].pin, INPUT);
+         if (sensors[i].auxPin != -1) {
+            pinMode(sensors[i].auxPin, OUTPUT);  // Configure power pin. This pin will be used to power the thermistor
+         }
+      }          
+   }
+   delay(500);
 
-  // Finish Led test  
-  digitalWrite(AlarmLedPin, LOW);
-  digitalWrite(TripLedPin, LOW);  
+   // Finish Led test
+   #ifdef ALARM_LED_PIN  
+      digitalWrite(ALARM_LED_PIN, LOW);
+   #endif
+   #ifdef TRIP_LED_PIN
+      digitalWrite(TRIP_LED_PIN, LOW);  
+    #endif
 
-  for (int i =0; i < numOfSensors; i++) { 
-     defaultSensors[i].timer = sensors[i].timer;
-     defaultSensors[i].alarmSP = sensors[i].alarmSP;
-     defaultSensors[i].enabled = sensors[i].enabled;
-  }
+   for (int i =0; i < numOfSensors; i++) { 
+      defaultSensors[i].timer = sensors[i].timer;
+      defaultSensors[i].alarmSP = sensors[i].alarmSP;
+      if (!sensors[i].forceDisable) {
+         defaultSensors[i].enabled = sensors[i].enabled;
+      } else {
+         defaultSensors[i].enabled = false;
+      }
+   }
 
-  readEEPROMData(); 
+   readEEPROMData(); 
 
-  // Start heart beat led timer 
-  startTimer(&ledTimer.startMs,&ledTimer.started);
+   // Start heart beat led timer 
+   startTimer(&ledTimer.startMs,&ledTimer.started);
 
-  #ifdef SerialComm
-  Serial.println("Safety Printer MCU ver." VERSION ", release date: " RELEASEDATE); // Boot end msg. Octoprint Plug in looking for this msg in order to indicate that the arduino ir ready to receive commands.
-  #endif
+   #ifdef DEBUG
+      startTimer(&debugTimer.startMs,&debugTimer.started);
+   #endif
 
+   #ifdef HAS_LCD
+      startTimer(&LCDTimer.startMs,&LCDTimer.started);
+   #endif
+
+   #ifdef HAS_SERIAL_COMM
+      Serial.println(F("Safety Printer MCU ver." VERSION ", release date: " RELEASEDATE)); // Boot end msg. Octoprint Plug in looking for this msg in order to indicate that the arduino ir ready to receive commands.
+   #endif
 }
 
 void loop() {
+
+   // Save the loop start time
+   lTStartTime = micros();
  
-  //Verify sensors
-  checkSensors();
+   //Verify sensors
+   checkSensors();
 
-  //Verify reset button
-  checkResetButton();
+   //Verify reset button
+   #ifdef RESET_BUTTON_PIN
+      checkResetButton();
+   #endif
 
-  //Update Interlock and Alarm indication status led
-  digitalWrite(AlarmLedPin, LOW); 
-  if (interlockStatusChanged) {
-     //LED indication of interlock status
-     interlockStatusChanged = false;
-     digitalWrite(TripLedPin, interlockStatus);
-     updateEEPROMinterlock();
-  }
+   //Update Interlock and Alarm indication status led
+   #ifdef ALARM_LED_PIN
+       digitalWrite(ALARM_LED_PIN, LOW); 
+   #endif
+   if (interlockStatusChanged) {
+      //LED indication of interlock status
+      interlockStatusChanged = false;
+      #ifdef TRIP_LED_PIN
+          digitalWrite(TRIP_LED_PIN, interlockStatus);
+      #endif
+      updateEEPROMinterlock();
+      #ifdef HAS_LCD
+         tripLCD = interlockStatus;
+      #endif
+   }
   
-  // Heart beat (using alarm and trip LEDs to test them)
-  if (checkTimer(&ledTimer.startMs,LEDDelay,&ledTimer.started)) { 
-       digitalWrite(AlarmLedPin,HIGH);
-       delay(25);
-       digitalWrite(AlarmLedPin,LOW);
-       digitalWrite(TripLedPin,HIGH);
-       delay(25);
-       digitalWrite(TripLedPin,interlockStatus);
-  } else {
-        startTimer(&ledTimer.startMs,&ledTimer.started);
-  } 
+   // Heart beat (using alarm and trip LEDs to test them)
+   #ifdef ALARM_LED_PIN || TRIP_LED_PIN
+   if (checkTimer(&ledTimer.startMs,LED_DELAY,&ledTimer.started)) { 
+      #ifdef ALARM_LED_PIN
+          digitalWrite(ALARM_LED_PIN,HIGH);
+          delay(25);
+          digitalWrite(ALARM_LED_PIN,LOW);
+      #endif
+      #ifdef TRIP_LED_PIN
+          digitalWrite(TRIP_LED_PIN,HIGH);
+          delay(25);
+          digitalWrite(TRIP_LED_PIN,interlockStatus);
+      #endif
+   } else {
+      startTimer(&ledTimer.startMs,&ledTimer.started);
+   }
+   #endif 
   
-  //Manage Serial communications
-  #ifdef SerialComm
-  // Receive commands from PC
-  recvCommandWithStartEndMarkers(); 
-  #endif
+   //Manage Serial communications
+   #ifdef HAS_SERIAL_COMM
+      // Receive commands from PC
+      recvCommandWithStartEndMarkers(); 
+   #endif
 
-  //Reset watchdog timer
-  wdt_reset();
+   //update LCD information 
+   #ifdef HAS_LCD
+      updateLCD(resetBtnPressed);
+   #endif   
+
+   //Debug Info
+   #ifdef DEBUG
+      if (checkTimer(&debugTimer.startMs,DEBUG_DELAY,&debugTimer.started)) { 
+         Serial.println();
+         Serial.print (F("Free memory [bytes]= "));  // 2048 bytes from datasheet
+         Serial.println (freeMemory());
+         Serial.print (F("Temperature [C]= "));
+         Serial.println (readTemp(), 2);
+         Serial.print (F("Voltage [V]= "));
+         Serial.println (readVcc(), 2);  // 2.7V to 5.5V from datasheet
+         Serial.print (F("Execution time max [us] = "));
+         Serial.println (lTLastMax,DEC); 
+         Serial.print (F("Execution time average [us] = "));
+         Serial.println (lTLastSum/LOOP_TIME_SAMPLES, DEC); 
+      } else {
+         startTimer(&debugTimer.startMs,&debugTimer.started);
+      } 
+   #endif
+
+   // check board health:
+   if (freeMemory() < 205) {  // 10% of total SRAM
+      memWrng = true;
+   }
+   if ((readTemp() > 110) || (readTemp() < -25)) {  // -40 to +125 +-15
+      tempWrng = true;
+   }
+   if ((readVcc() < 2.7) || (readVcc() > 5.5)) { // 2.7 to 5.5 Vcd 
+       voltWrng = true;
+   }
+
+   // Measures the execution time
+   lTLastRecord++;   
+   lTNow = micros() - lTStartTime;   
+   lTSum += lTNow;
+   
+   if (lTNow > lTMax) {
+      lTMax = lTNow;    
+   }
+   
+   if (lTLastRecord >= LOOP_TIME_SAMPLES) {
+      lTLastSum = lTSum;
+      lTSum = 0;
+      lTLastMax = lTMax;
+      lTMax = 0;      
+      lTLastRecord = 0;
+      if (lTLastMax > 500000) {   // 500 ms
+         execWrng = true;
+      }
+   } 
+   
+   //Reset watchdog timer
+   wdt_reset();
+}
+
+void validateSensorsInfo() {   
+   // Check sensor configurations that cannot be done by pre-processor
+   byte usedPins[21];
+   byte arrayPos = 0;
+   #ifdef INTERLOCK_RELAY_PIN
+      usedPins[arrayPos] = INTERLOCK_RELAY_PIN;
+      arrayPos++;
+   #endif
+
+   #ifdef RESET_BUTTON_PIN
+      usedPins[arrayPos] = RESET_BUTTON_PIN;
+      arrayPos++;
+   #endif
+    
+   #ifdef ALARM_LED_PIN
+      usedPins[arrayPos] = ALARM_LED_PIN;
+      arrayPos++;
+   #endif
+    
+   #ifdef TRIP_LED_PIN
+      usedPins[arrayPos] = TRIP_LED_PIN;
+      arrayPos++;
+   #endif
+    
+   #ifdef LCD_SDA_PIN
+      usedPins[arrayPos] = LCD_SDA_PIN;
+      arrayPos++;
+   #endif
+    
+   #ifdef LCD_SCL_PIN
+      usedPins[arrayPos] = LCD_SCL_PIN;
+      arrayPos++;
+   #endif
+   
+   for (byte i = 0; i < numOfSensors; i++) {
+      //sensors[i].label = sensors[i].label.substring(0,16);
+      for (byte j = 0; j < sizeof(sensors[i].label); j++) {
+         for (byte x = 0; x < sizeof(forb_chars); x++) {
+            //sensors[i].label.replace(forb_chars[j],'?');
+            if (sensors[i].label[j] == forb_chars[x]) {
+               sensors[i].label[j] = '?';
+            }
+         }
+      }
+      usedPins[arrayPos] = sensors[i].pin;
+      arrayPos++;
+      if (sensors[i].auxPin != -1) {
+         usedPins[arrayPos] = sensors[i].auxPin;
+         arrayPos++;
+      }
+      if (sensors[i].type == NTC_SENSOR) {
+         sensors[i].highSP = highest_temp(i);
+      }   
+      if ((sensors[i].alarmSP < sensors[i].lowSP) || (sensors[i].alarmSP > sensors[i].highSP)) {
+         #ifdef HAS_SERIAL_COMM
+            Serial.print(sensors[i].label);
+            Serial.print(F(": Wrong sensor ALARM SET POINT ("));
+            Serial.print(sensors[i].alarmSP);
+            Serial.print(F("definition: "));
+            Serial.print(sensors[i].lowSP);
+            Serial.print(F(" to "));
+            Serial.print(sensors[i].highSP);
+            Serial.println(F(". Check your Configuration.h file. Sensor disabled."));
+         #endif
+         sensors[i].alarmSP = 0;
+         sensors[i].enabled = false;
+         sensors[i].forceDisable = true;
+      }    
+   }
+   for (byte i = 0; i < arrayPos-1; i++) {
+      for (byte j = i+1; j < arrayPos; j++) {
+         if (usedPins[i] == usedPins[j] && usedPins[i] != -1){
+            // Duplicated pin assignment found.
+            for (byte x = 0; x < numOfSensors; x++){
+               if (sensors[x].pin == usedPins[i] || sensors[x].auxPin == usedPins[i]) {
+                  sensors[x].enabled = false;
+                  sensors[x].forceDisable = true;
+                  #ifdef HAS_SERIAL_COMM
+                     Serial.print(sensors[x].label);
+                     Serial.println(F(": Multiple assings to the same I/O pin. Check your Configuration.h file. Sensor disabled."));
+                  #endif
+               }
+            }
+         }
+      }
+   }
 }
 
 void checkSensors() {
    // Check all inputs for new alamrs
    activeAlarmCount = 0;
    for (byte i =0; i < numOfSensors; i++) { 
-      if (sensors[i].type == DigitalSensor){
+      if (sensors[i].type == DIGIGTAL_SENSOR){
         sensors[i].actualValue = digitalRead(sensors[i].pin);
         if (sensors[i].actualValue == sensors[i].alarmSP) {
            setAlarm(i);
@@ -352,7 +590,7 @@ void checkSensors() {
            sensors[i].active = false;
         }
       }
-      else if (sensors[i].type == NTCSensor) {
+      else if (sensors[i].type == NTC_SENSOR) {
         sensors[i].actualValue = read_temp(sensors[i].pin, sensors[i].auxPin, i);
         if (sensors[i].actualValue >= sensors[i].alarmSP) {
            setAlarm(i);
@@ -364,27 +602,48 @@ void checkSensors() {
    if ((activeAlarmCount == 0) and interlockTimer.started) {
       interlockTimer.started = false;
    } else if (activeAlarmCount > 1) {
-      interlock(false,0);
+      interlock(false,0);      
    }
 }
 
+#ifdef RESET_BUTTON_PIN
 void checkResetButton() {
-  // Check if the reset button [ResetButtonPin] is pressed, else reset the timer.
-  if (!digitalRead(ResetButtonPin)){
-    resetInterlock(true);   
-  } else {
-    resetTimer.started = false;
-  } 
+   // Check if the reset button [RESET_BUTTON_PIN] is pressed, else reset the timer.
+   if (interlockStatus) {
+      if (!digitalRead(RESET_BUTTON_PIN)){
+         #ifdef HAS_LCD
+            if (!resetBtnPressed) {
+               resetBtnPressed = true;
+               includeExtraMsg(0,10,false);
+            }
+         #endif
+         if (resetInterlock(true)) {
+            #ifdef HAS_LCD
+               includeExtraMsg(0,1,false);
+            #endif      
+         } 
+      } else {
+        resetBtnPressed = false;
+        resetTimer.started = false;
+      } 
+   }
 }
+#endif
 
-void setAlarm(int index) {
-  // Turn an Alarm active, start timers and light Alarm LED [AlarmLedPin].
+void setAlarm(byte index) {
+  // Turn an Alarm active, start timers and light Alarm LED [ALARM_LED_PIN].
   if (sensors[index].enabled) {
      activeAlarmCount++;
+     if (triggerIndex == 255) {
+        triggerIndex = index;
+        sensors[index].trigger = true;
+     }
      interlock(true,sensors[index].timer);
   }
   sensors[index].active = true;
-  digitalWrite(AlarmLedPin, HIGH); 
+  #ifdef ALARM_LED_PIN
+    digitalWrite(ALARM_LED_PIN, HIGH); 
+  #endif
 }
 
 void startTimer(unsigned long *pStartMS, bool *timerStatus) {
@@ -416,55 +675,155 @@ bool checkTimer(unsigned long *pStartMS, unsigned int delayms, bool *timerStatus
 }
 
 void interlock(bool useTimer, int interlockDelay) {
-   // Change the output [InterlockRelayPin] to an interlock position [InterlockPolarity] after some time to prevent spurious trips
+   // Change the output [INTERLOCK_RELAY_PIN] to an interlock position [INTERLOCK_POLARITY] after some time to prevent spurious trips
    bool interlockFlag = false;
    if (!useTimer) {
-     interlockFlag = true;
+      interlockFlag = true;
    } else {
-     if (checkTimer(&interlockTimer.startMs,interlockDelay,&interlockTimer.started)) { 
-        if (!interlockStatus) {
-           interlockFlag = true;
-        }
+      if (checkTimer(&interlockTimer.startMs,interlockDelay,&interlockTimer.started)) { 
+         if (!interlockStatus) {
+            interlockFlag = true;
+         }
       } else {
-          startTimer(&interlockTimer.startMs,&interlockTimer.started);
+         startTimer(&interlockTimer.startMs,&interlockTimer.started);
       } 
    }  
-    if (interlockFlag) {
+   if (interlockFlag) {
+       if (!minimumInterlockTimer.started) {
+          startTimer(&minimumInterlockTimer.startMs,&minimumInterlockTimer.started);
+       }
        interlockStatus = true;
        interlockStatusChanged = true;
-       digitalWrite(InterlockRelayPin,InterlockPolarity);
-       digitalWrite(TripLedPin, HIGH); 
-    }   
-}
-
-void turnOnOff(bool on) {
-   // Change the output [InterlockRelayPin]. Diffenret as interlock() because it don't change internal status flags to enable a simple turn on/off.
-   if (on && !interlockStatus){
-      printerPowered = true;
-      digitalWrite(InterlockRelayPin,!InterlockPolarity);
-   } else {
-      printerPowered = false;
-      digitalWrite(InterlockRelayPin,InterlockPolarity);
+       digitalWrite(INTERLOCK_RELAY_PIN,INTERLOCK_POLARITY);
+       #ifdef TRIP_LED_PIN
+          digitalWrite(TRIP_LED_PIN, HIGH); 
+       #endif
    }   
 }
 
-void resetInterlock(bool useTimer) {
-   // Change the output [InterlockRelayPin] to normal position [NOT InterlockPolarity] after some time to prevent spurious resets
+bool turnOnOff(bool on) {
+   // Change the output [INTERLOCK_RELAY_PIN]. Different as interlock() because it don't change internal status flags to enable a simple turn on/off. Return true if command was applied.
+   if (on && !interlockStatus){
+      if (checkTimer(&minimumInterlockTimer.startMs,MINIMUM_INTERLOCK_DELAY * 1000,&minimumInterlockTimer.started)) {
+        printerPowered = true;
+        digitalWrite(INTERLOCK_RELAY_PIN,!INTERLOCK_POLARITY);
+        return true;
+      } else {
+        return false;
+      }
+   } else {
+      printerPowered = false;
+      digitalWrite(INTERLOCK_RELAY_PIN,INTERLOCK_POLARITY);
+      if (!minimumInterlockTimer.started) {
+         startTimer(&minimumInterlockTimer.startMs,&minimumInterlockTimer.started);
+      }
+      return true;
+   } 
+   return false;  
+}
+
+bool resetInterlock(bool useTimer) {
+   // Change the output [INTERLOCK_RELAY_PIN] to normal position [NOT INTERLOCK_POLARITY] after some time to prevent spurious resets. Return "true" if MINIMUM_INTERLOCK_DELAY
    bool resetFlag = false;
    if (!useTimer) {
       resetFlag = true;
    } else { 
-     if (checkTimer(&resetTimer.startMs,ResetDelay,&resetTimer.started)) { 
+     if (checkTimer(&resetTimer.startMs,RESET_DELAY,&resetTimer.started)) { 
         resetFlag = true;
      } else {
         startTimer(&resetTimer.startMs,&resetTimer.started);
      }
    }
    if (resetFlag) {
-      interlockStatus = false;
-      interlockStatusChanged = true;
-      if (printerPowered) { 
-        digitalWrite(InterlockRelayPin,!InterlockPolarity);
+      if (checkTimer(&minimumInterlockTimer.startMs,MINIMUM_INTERLOCK_DELAY * 1000,&minimumInterlockTimer.started)) {
+         interlockStatus = false;
+         interlockStatusChanged = true;
+         triggerIndex = 255;
+         for (byte i = 0; i < numOfSensors; i++){
+            sensors[i].trigger = false;
+         }
+         if (printerPowered) { 
+           digitalWrite(INTERLOCK_RELAY_PIN,!INTERLOCK_POLARITY);
+         }
+         return true;
+      }
+      else {
+         return false;
       }
    }
+   return false;
+}
+
+
+
+#ifdef __arm__
+// should use uinstd.h to define sbrk but Due causes a conflict
+extern "C" char* sbrk(int incr);
+#else  // __ARM__
+extern char *__brkval;
+#endif  // __arm__
+
+int freeMemory() {
+  char top;
+#ifdef __arm__
+  return &top - reinterpret_cast<char*>(sbrk(0));
+#elif defined(CORE_TEENSY) || (ARDUINO > 103 && ARDUINO != 151)
+  return &top - __brkval;
+#else  // __arm__
+  return __brkval ? &top - __brkval : &top - __malloc_heap_start;
+#endif  // __arm__
+}
+
+float readTemp() { 
+  /*
+  long result; // Read temperature sensor against 1.1V reference 
+  ADMUX = _BV(REFS1) | _BV(REFS0) | _BV(MUX3);
+  delay(2); // Wait for Vref to settle 
+  ADCSRA |= _BV(ADSC); // Convert 
+  while (bit_is_set(ADCSRA,ADSC)); 
+  result = ADCL;
+  result |= ADCH<<8;
+  result = (result - 125) * 1075;
+  return result;
+  */
+  unsigned int wADC;
+  float t;
+
+  // The internal temperature has to be used
+  // with the internal reference of 1.1V.
+  // Channel 8 can not be selected with
+  // the analogRead function yet.
+
+  // Set the internal reference and mux.
+  ADMUX = (_BV(REFS1) | _BV(REFS0) | _BV(MUX3));
+  ADCSRA |= _BV(ADEN);  // enable the ADC
+
+  delay(20);            // wait for voltages to become stable.
+
+  ADCSRA |= _BV(ADSC);  // Start the ADC
+
+  // Detect end-of-conversion
+  while (bit_is_set(ADCSRA,ADSC));
+
+  // Reading register "ADCW" takes care of how to read ADCL and ADCH.
+  wADC = ADCW;
+
+  // The offset of 324.31 could be wrong. It is just an indication.
+  t = (wADC - 324.31 ) / 1.22;
+
+  // The returned temperature is in degrees Celcius.
+  return (t);
+  
+}
+
+float readVcc() { 
+   long result; // Read 1.1V reference against AVcc 
+   ADMUX = _BV(REFS0) | _BV(MUX3) | _BV(MUX2) | _BV(MUX1);
+   delay(2); // Wait for Vref to settle 
+   ADCSRA |= _BV(ADSC); // Convert 
+   while (bit_is_set(ADCSRA,ADSC)); 
+   result = ADCL;
+   result |= ADCH<<8; 
+   result = 1126400L / result; // Back-calculate AVcc in mV 
+   return result / 1000.0; // convert to volts
 }
