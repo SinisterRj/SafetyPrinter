@@ -135,6 +135,8 @@ void recvCommandWithStartEndMarkers() {
       Cmd_r4();
     } else if (String(command).equalsIgnoreCase("r5")) {
       Cmd_r5();
+    } else if ((String(command).equalsIgnoreCase("r6")) || (String(command).equalsIgnoreCase("ispowered"))) {
+      Cmd_r6();
     } else if (String(command).equalsIgnoreCase("d1")) {
       Cmd_d1(argument1);
     } else {
@@ -666,6 +668,10 @@ void Cmd_r5()
       Serial.print (F("Cmd_r5: Free memory [bytes]= "));  // 2048 bytes from datasheet
       Serial.println (freeMemory());
    #endif 
+}
+
+void Cmd_r6() {
+  send(BoolToString(printerPowered));
 }
 
 void Cmd_d1(char argument1[ARGUMENTSIZE]) 
