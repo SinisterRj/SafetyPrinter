@@ -1,5 +1,4 @@
 /**
- * TESTES com o Leonardo
  * Safety Printer Firmware
  * Copyright (c) 2021 Rodrigo C. C. Silva [https://github.com/SinisterRj/SafetyPrinter]
  *
@@ -17,17 +16,6 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  * 
  * WARNING: DON'T CHANGE ANYTHING IN THIS FILE! ALL CONFIGURATIONS SHOULD BE DONE IN "Configurations.h".
- * 
- * Version 0.2.6
- * 04/02/22
- * Changes:
- * 1) New default pin out to match with the official Safety Printer Arduino Shield;
- * 2) Include <R6> command to repeat intro msg for Leonardo;
- * 3) Remove "booting..." string from the setup;
- * 4) Create BOARD definition to easily change configuration from different Arduino boards;
- * 5) Add support to Serial1.
- * 6) Included command <r7> to report Printer's power status (user request) - Integration with PSU Control
- *
  * 
  * Version 0.2.5
  * 10/21/2021
@@ -85,12 +73,7 @@
 
 #define DIGIGTAL_SENSOR         0           // Internal use, don't change
 #define NTC_SENSOR              1           // Internal use, don't change
-
-// Board Codes
-#define UNO                     1
-#define NANO                    2
-#define LEONARDO                3
-
+ 
 #include <Arduino.h>                        // Needed to compile with Platformio
 #include <avr/wdt.h>                        // Watchdog
 #include <EEPROM.h>                         // EEPROM access
@@ -104,10 +87,10 @@
 // *************************** Don't change after this line **********************************
 // *******************************************************************************************
 
-#define VERSION                 "0.2.6"
-#define RELEASEDATE             "Feb 07 2022"
+#define VERSION                 "0.2.5"
+#define RELEASEDATE             "Oct 21 2021"
 #define EEPROMVERSION           3            // Incremental BYTE. Firmware overwrites the EEPROM with standard values if the number readed from EEPROM is different. change everytime that EEPROM structure is changed.
-#define COMMPROTOCOL            4            // Incremental BYTE. Octoprint plugin communication protocol version. 
+#define COMMPROTOCOL            3            // Incremental BYTE. Octoprint plugin communication protocol version. 
 
 char forb_chars[] = {',','#','$',':','<','>'};   // forbiden characters for sensor names
 //int availableThermistors[] = {1,2,3,4,5,6,7,8,9,10,11,12,13,15,17,18,20,21,22,23,30,51,52,55,60,61,66,67,70,71,75,99,331,332,998,999};
@@ -309,21 +292,14 @@ bool resetBtnPressed = false;
   bool tripLCD = false;
 #endif
 
-#ifdef HAS_SERIAL_COMM
-  #ifdef USE_SERIAL1
-    #define SERIAL Serial1
-  #else
-    #define SERIAL Serial
-  #endif
-#endif
-
 void setup() {
 
    //Enabling watchdog timer 4s  
    wdt_enable(WDTO_4S);
    
    #ifdef HAS_SERIAL_COMM
-      SERIAL.begin(BAUD_RATE);
+      Serial.begin(BAUD_RATE);
+      Serial.println(F("booting..."));    
    #endif
 
    #ifdef HAS_LCD
@@ -398,7 +374,7 @@ void setup() {
    #endif
 
    #ifdef HAS_SERIAL_COMM
-      SERIAL.println(F("Safety Printer MCU ver." VERSION ", release date: " RELEASEDATE)); // Boot end msg. Octoprint Plug in looking for this msg in order to indicate that the arduino ir ready to receive commands.
+      Serial.println(F("Safety Printer MCU ver." VERSION ", release date: " RELEASEDATE)); // Boot end msg. Octoprint Plug in looking for this msg in order to indicate that the arduino ir ready to receive commands.
    #endif
 }
 
@@ -463,17 +439,17 @@ void loop() {
    //Debug Info
    #ifdef DEBUG
       if (checkTimer(&debugTimer.startMs,DEBUG_DELAY,&debugTimer.started)) { 
-         SERIAL.println();
-         SERIAL.print (F("Free memory [bytes]= "));  // 2048 bytes from datasheet
-         SERIAL.println (freeMemory());
-         SERIAL.print (F("Temperature [C]= "));
-         SERIAL.println (readTemp(), 2);
-         SERIAL.print (F("Voltage [V]= "));
-         SERIAL.println (readVcc(), 2);  // 2.7V to 5.5V from datasheet
-         SERIAL.print (F("Execution time max [us] = "));
-         SERIAL.println (lTLastMax,DEC); 
-         SERIAL.print (F("Execution time average [us] = "));
-         SERIAL.println (lTLastSum/LOOP_TIME_SAMPLES, DEC); 
+         Serial.println();
+         Serial.print (F("Free memory [bytes]= "));  // 2048 bytes from datasheet
+         Serial.println (freeMemory());
+         Serial.print (F("Temperature [C]= "));
+         Serial.println (readTemp(), 2);
+         Serial.print (F("Voltage [V]= "));
+         Serial.println (readVcc(), 2);  // 2.7V to 5.5V from datasheet
+         Serial.print (F("Execution time max [us] = "));
+         Serial.println (lTLastMax,DEC); 
+         Serial.print (F("Execution time average [us] = "));
+         Serial.println (lTLastSum/LOOP_TIME_SAMPLES, DEC); 
       } else {
          startTimer(&debugTimer.startMs,&debugTimer.started);
       } 
@@ -569,14 +545,14 @@ void validateSensorsInfo() {
       }   
       if ((sensors[i].alarmSP < sensors[i].lowSP) || (sensors[i].alarmSP > sensors[i].highSP)) {
          #ifdef HAS_SERIAL_COMM
-            SERIAL.print(sensors[i].label);
-            SERIAL.print(F(": Wrong sensor ALARM SET POINT ("));
-            SERIAL.print(sensors[i].alarmSP);
-            SERIAL.print(F("definition: "));
-            SERIAL.print(sensors[i].lowSP);
-            SERIAL.print(F(" to "));
-            SERIAL.print(sensors[i].highSP);
-            SERIAL.println(F(". Check your Configuration.h file. Sensor disabled."));
+            Serial.print(sensors[i].label);
+            Serial.print(F(": Wrong sensor ALARM SET POINT ("));
+            Serial.print(sensors[i].alarmSP);
+            Serial.print(F("definition: "));
+            Serial.print(sensors[i].lowSP);
+            Serial.print(F(" to "));
+            Serial.print(sensors[i].highSP);
+            Serial.println(F(". Check your Configuration.h file. Sensor disabled."));
          #endif
          sensors[i].alarmSP = 0;
          sensors[i].enabled = false;
@@ -592,8 +568,8 @@ void validateSensorsInfo() {
                   sensors[x].enabled = false;
                   sensors[x].forceDisable = true;
                   #ifdef HAS_SERIAL_COMM
-                     SERIAL.print(sensors[x].label);
-                     SERIAL.println(F(": Multiple assings to the same I/O pin. Check your Configuration.h file. Sensor disabled."));
+                     Serial.print(sensors[x].label);
+                     Serial.println(F(": Multiple assings to the same I/O pin. Check your Configuration.h file. Sensor disabled."));
                   #endif
                }
             }
@@ -817,47 +793,24 @@ float readTemp() {
   // with the internal reference of 1.1V.
   // Channel 8 can not be selected with
   // the analogRead function yet.
-  #if (BOARD == UNO) || (BOARD == NANO)
-    // Set the internal reference and mux.
-    ADMUX = (_BV(REFS1) | _BV(REFS0) | _BV(MUX3));
-    ADCSRA |= _BV(ADEN);  // enable the ADC
 
-    delay(20);            // wait for voltages to become stable.
+  // Set the internal reference and mux.
+  ADMUX = (_BV(REFS1) | _BV(REFS0) | _BV(MUX3));
+  ADCSRA |= _BV(ADEN);  // enable the ADC
 
-    ADCSRA |= _BV(ADSC);  // Start the ADC
+  delay(20);            // wait for voltages to become stable.
 
-    // Detect end-of-conversion
-    while (bit_is_set(ADCSRA,ADSC));
+  ADCSRA |= _BV(ADSC);  // Start the ADC
 
-    // Reading register "ADCW" takes care of how to read ADCL and ADCH.
-    wADC = ADCW;
+  // Detect end-of-conversion
+  while (bit_is_set(ADCSRA,ADSC));
 
-    // The offset of 324.31 could be wrong. It is just an indication.
-    t = (wADC - 324.31 ) / 1.22;
-  #endif
-  #if (BOARD == LEO)
-    ADMUX = 0b11000111;
-    ADCSRB |= (1 << MUX5); // enable the ADC
+  // Reading register "ADCW" takes care of how to read ADCL and ADCH.
+  wADC = ADCW;
 
-    delay(5); // wait for voltages to become stable.
+  // The offset of 324.31 could be wrong. It is just an indication.
+  t = (wADC - 324.31 ) / 1.22;
 
-    ADCSRA |= _BV(ADSC); // Start the ADC
-
-    // Detect end-of-conversion
-    while (bit_is_set(ADCSRA,ADSC));
-
-    delay(5);
-
-    ADCSRA |= _BV(ADSC); // Start the ADC
-
-    // Detect end-of-conversion
-    while (bit_is_set(ADCSRA,ADSC));
-    byte low = ADCL;
-    byte high = ADCH;
-
-    wADC = (high << 8) | low;
-    t = ((wADC - 273.0) + 5.0); //Convert from Kelvin to Celcius plus Offset
-  #endif
   // The returned temperature is in degrees Celcius.
   return (t);
   
@@ -865,25 +818,12 @@ float readTemp() {
 
 float readVcc() { 
    long result; // Read 1.1V reference against AVcc 
-   #if (BOARD == UNO) || (BOARD == NANO)
-     ADMUX = _BV(REFS0) | _BV(MUX3) | _BV(MUX2) | _BV(MUX1);
-   #endif
-   #if (BOARD == LEO)
-     ADMUX = _BV(REFS0) | _BV(MUX4) | _BV(MUX3) | _BV(MUX2) | _BV(MUX1);
-   #endif
-
+   ADMUX = _BV(REFS0) | _BV(MUX3) | _BV(MUX2) | _BV(MUX1);
    delay(2); // Wait for Vref to settle 
    ADCSRA |= _BV(ADSC); // Convert 
    while (bit_is_set(ADCSRA,ADSC)); 
-  
    result = ADCL;
    result |= ADCH<<8; 
-      
-   #if (BOARD == UNO) || (BOARD == NANO)
-     result = 1126400L / result; // Back-calculate AVcc in mV 
-   #endif
-   #if (BOARD == LEO) 
-     result = 1125300L / result; //1125300L / result;    
-   #endif   
+   result = 1126400L / result; // Back-calculate AVcc in mV 
    return result / 1000.0; // convert to volts
 }

@@ -60,7 +60,7 @@ void readEEPROMData() {
             if ((sensors[i].alarmSP < sensors[i].lowSP) || (sensors[i].alarmSP > sensors[i].highSP)) {
                // Wrong value. Change back to standard:           
                #ifdef HAS_SERIAL_COMM
-               SERIAL.println("Invalid EEPROM set point read (" + String(sensors[i].alarmSP) +"). Defining standard set point to " + sensors[i].label + " (" + String(defaultSensors[i].alarmSP) + ").");
+               Serial.println("Invalid EEPROM set point read (" + String(sensors[i].alarmSP) +"). Defining standard set point to " + sensors[i].label + " (" + String(defaultSensors[i].alarmSP) + ").");
                #endif
                sensors[i].alarmSP = defaultSensors[i].alarmSP;
             }
@@ -75,9 +75,9 @@ void readEEPROMData() {
               if (firstLoop) {
                   firstLoop = false;
                   #ifdef HAS_SERIAL_COMM
-                  SERIAL.print(F("Waiting "));
-                  SERIAL.print(MINIMUM_INTERLOCK_DELAY);
-                  SERIAL.println(F("s to turn on printer."));
+                  Serial.print(F("Waiting "));
+                  Serial.print(MINIMUM_INTERLOCK_DELAY);
+                  Serial.println(F("s to turn on printer."));
                   #endif
               }
               delay(250);
@@ -87,7 +87,7 @@ void readEEPROMData() {
       } else {
          //Write EEPROM for the first time
          #ifdef HAS_SERIAL_COMM
-         SERIAL.println(F("Wrong EEPROM version. Overwriting EEPROM with standard values."));
+         Serial.println(F("Wrong EEPROM version. Overwriting EEPROM with standard values."));
          #endif
          writeEEPROMData();
      }
@@ -95,7 +95,7 @@ void readEEPROMData() {
    else {
          //EEPROM corrupted. Write standard values
          #ifdef HAS_SERIAL_COMM
-         SERIAL.println(F("EEPROM corrupted. Overwriting EEPROM with standard values."));
+         Serial.println(F("EEPROM corrupted. Overwriting EEPROM with standard values."));
          #endif
          writeEEPROMData();    
    }  
