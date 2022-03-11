@@ -21,20 +21,26 @@
 // ****************************************************************************
 // General Configurations:
 
-    #define INTERLOCK_RELAY_PIN     6           // Arduino's Digital pin connected to the Printer's power supply relay.
+    #define BOARD                   UNO         // UNO, NANO or LEO (Leonardo)
+
+    #define INTERLOCK_RELAY_PIN     10          // Arduino's Digital pin connected to the Printer's power supply relay.
     #define INTERLOCK_POLARITY      HIGH        // Change if you need to toggle the behavior of the interlock pin (if its HIGH it means that the [INTERLOCK_RELAY_PIN] output will be LOW under normal conditions and HIGH when an interlock occurs)
     #define MINIMUM_INTERLOCK_DELAY 5           // Minimum amount of time (in s) that an interlock will be active (to avoid fast switch printer on and off and possible damage it)
 
     #define RESET_BUTTON_PIN        11          // Arduino's Digital pin connected to the trip reset switch (OPTIONAL).
     #define RESET_DELAY             2500        // Delay for reseting the trip condition in [ms]
    
-    #define ALARM_LED_PIN           10          // Arduino's Digital pin connected to the alarm indication LED (OPTIONAL).
-    #define TRIP_LED_PIN            12          // Arduino's Digital pin connected to the trip indication LED (OPTIONAL).
+    #define ALARM_LED_PIN           12          // Arduino's Digital pin connected to the alarm indication LED (OPTIONAL).
+    #define TRIP_LED_PIN            13          // Arduino's Digital pin connected to the trip indication LED (OPTIONAL).
     #define LED_DELAY               5000        // Led heart beat interval in [ms]
 
     #define HAS_SERIAL_COMM                     // Uncomment to Enable serial communications. Needed to interface with Octoprint plugin (OPTIONAL)
     #ifdef HAS_SERIAL_COMM
       #define BAUD_RATE             38400       // :[2400, 9600, 19200, 38400, 57600, 115200]
+      #if (BOARD == LEO)
+        //#define USE_SERIAL1                     // Uncomment to user Serial 1 (UART ons Pins D0 and D1) on Arduino Leonardo. Otherwise Serial 0 (USB connector will be used)
+      #endif                  
+
     #endif
 
     #define HAS_LCD                             // Uncomment to Enable the use of a 2x16 I2C LCD. (OPTIONAL)
@@ -42,8 +48,15 @@
     #ifdef HAS_LCD
       #define LCD_DELAY             2000        // LCD refresh rate in ms
       #define LCD_ADDRESS           0x27        // LCD I2C address
-      #define LCD_SDA_PIN           A4          // I2C data PIN (always use this pin for Arduino Uno or Nano)
-      #define LCD_SCL_PIN           A5          // I2C clock PIN (always use this pin for Arduino Uno or Nano)
+
+      #if (BOARD == UNO) || (BOARD == NANO)
+        #define LCD_SDA_PIN           A4        // I2C data PIN (always use A4 for Arduino Uno or Nano or 2 for Leonardo)
+        #define LCD_SCL_PIN           A5        // I2C clock PIN (always use A5 for Arduino Uno or Nano or 3 for Leonardo)
+      #endif
+      #if (BOARD == LEO)
+        #define LCD_SDA_PIN           2         // I2C data PIN (always use A4 for Arduino Uno or Nano or 2 for Leonardo)
+        #define LCD_SCL_PIN           3         // I2C clock PIN (always use A5 for Arduino Uno or Nano or 3 for Leonardo)
+      #endif
     #endif
 
 /* 
@@ -118,8 +131,8 @@ SENSOR_5_TEMP_TYPE : *Optional  : An integer number with one of temperature tabl
  *
  *
 */
-
-    #define SENSOR_1_LABEL           "Flame 1"       
+  // Digital Sensor 1:
+    #define SENSOR_1_LABEL           "Smoke"       
     #define SENSOR_1_PIN              9                
   //#define SENSOR_1_AUX_PIN          0                
     #define SENSOR_1_TYPE             DIGIGTAL_SENSOR
@@ -127,7 +140,8 @@ SENSOR_5_TEMP_TYPE : *Optional  : An integer number with one of temperature tabl
     #define SENSOR_1_ALARM_SP         LOW              
   //#define SENSOR_1_TEMP_TYPE        1                
 
-    #define SENSOR_2_LABEL            "Flame 2"
+  // Digital Sensor 2
+    #define SENSOR_2_LABEL            "Flame 1"
     #define SENSOR_2_PIN              8
   //#define SENSOR_2_AUX_PIN          0
     #define SENSOR_2_TYPE             DIGIGTAL_SENSOR
@@ -135,33 +149,37 @@ SENSOR_5_TEMP_TYPE : *Optional  : An integer number with one of temperature tabl
     #define SENSOR_2_ALARM_SP         LOW
   //#define SENSOR_2_TEMP_TYPE        1
 
-    #define SENSOR_3_LABEL            "Emergency Button"
-    #define SENSOR_3_PIN              5
+  // Digital Sensor 3
+    #define SENSOR_3_LABEL            "Flame 2"
+    #define SENSOR_3_PIN              7
   //#define SENSOR_3_AUX_PIN          0
     #define SENSOR_3_TYPE             DIGIGTAL_SENSOR
     #define SENSOR_3_TIMER            250
     #define SENSOR_3_ALARM_SP         LOW
   //#define SENSOR_3_TEMP_TYPE        1
 
-    #define SENSOR_4_LABEL            "Smoke"
-    #define SENSOR_4_PIN              7
+  // Digital Sensor 4  
+    #define SENSOR_4_LABEL            "Emergency Button"
+    #define SENSOR_4_PIN              6
   //#define SENSOR_4_AUX_PIN          0
     #define SENSOR_4_TYPE             DIGIGTAL_SENSOR
     #define SENSOR_4_TIMER            250
     #define SENSOR_4_ALARM_SP         LOW
   //#define SENSOR_4_TEMP_TYPE        1
 
+  // Temp. Sensor 1
     #define SENSOR_5_LABEL            "HotEnd Temp."
-    #define SENSOR_5_PIN              A6
-    #define SENSOR_5_AUX_PIN          2
+    #define SENSOR_5_PIN              A0 //A6
+    #define SENSOR_5_AUX_PIN          5 //2
     #define SENSOR_5_TYPE             NTC_SENSOR
     #define SENSOR_5_TIMER            250
     #define SENSOR_5_ALARM_SP         290
     #define SENSOR_5_TEMP_TYPE        1
 
+  // Temp. Sensor 2  
     #define SENSOR_6_LABEL            "Bed Temp."
-    #define SENSOR_6_PIN              A7
-    #define SENSOR_6_AUX_PIN          3
+    #define SENSOR_6_PIN              A1 //A7
+    #define SENSOR_6_AUX_PIN          4  //3
     #define SENSOR_6_TYPE             NTC_SENSOR
     #define SENSOR_6_TIMER            250
     #define SENSOR_6_ALARM_SP         150
