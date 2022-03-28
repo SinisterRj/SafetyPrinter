@@ -137,6 +137,8 @@ void recvCommandWithStartEndMarkers() {
       Cmd_r5();
     } else if ((String(command).equalsIgnoreCase("r6")) || (String(command).equalsIgnoreCase("ispowered"))) {
       Cmd_r6();
+    } else if ((String(command).equalsIgnoreCase("r7")) || (String(command).equalsIgnoreCase("ping"))) {
+      Cmd_r7();
     } else if (String(command).equalsIgnoreCase("d1")) {
       Cmd_d1(argument1);
     } else {
@@ -672,6 +674,10 @@ void Cmd_r5()
 
 void Cmd_r6() {
   send(BoolToString(printerPowered));
+}
+
+void Cmd_r7() {
+  send("pong");
 }
 
 void Cmd_d1(char argument1[ARGUMENTSIZE]) 
