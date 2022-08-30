@@ -1,6 +1,6 @@
 //*************************   Configuration.h verification module  *************************
 /*
- * Copyright (c) 20MAX_PIN Rodrigo C. C. Silva [https://github.com/SinisterRj/SafetyPrinter]
+ * Copyright (c) 2021~22 Rodrigo C. C. Silva [https://github.com/SinisterRj/SafetyPrinter]
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -222,55 +222,3 @@
   #endif
 #endif
 
-/*
-void validateSensorsInfo() {   // *************************************** change to pre processor tests
-   // Check all sensor configurations
-   for (byte i = 0; i < numOfSensors; i++) {
-      sensors[i].label = sensors[i].label.substring(0,16);
-      for (byte j = 0; j < sizeof(forb_chars); j++) {
-         sensors[i].label.replace(forb_chars[j],'?');
-      }
-      if (sensors[i].pin < 0 || sensors[i].pin > MAX_PIN) {
-         #ifdef HAS_SERIAL_COMM
-            SERIAL.print(sensors[i].label);
-            SERIAL.println(F(": Wrong sensor PIN definition. Check your Configuration.h file. Sensor disabled."));
-         #endif
-         sensors[i].pin = 0;
-         sensors[i].forceDisable = true;
-      }
-      if (sensors[i].auxPin < -1 || sensors[i].auxPin > MAX_PIN) {
-         #ifdef HAS_SERIAL_COMM
-            SERIAL.print(sensors[i].label);
-            SERIAL.println(F(": Wrong sensor AUX_PIN definition. Check your Configuration.h file. Sensor disabled."));
-         #endif
-         sensors[i].auxPin = 0;
-         sensors[i].forceDisable = true;
-      }
-      if (sensors[i].type != DigitalSensor && sensors[i].type != NTCSensor) {
-         #ifdef HAS_SERIAL_COMM   
-            SERIAL.print(sensors[i].label);      
-            SERIAL.println(F(": Wrong sensor TYPE definition. Check your Configuration.h file. Sensor disabled."));
-         #endif
-         sensors[i].type = DigitalSensor;
-         sensors[i].forceDisable = true;
-      }
-      if (sensors[i].type == DigitalSensor && sensors[i].alarmSP != 0 && sensors[i].alarmSP != 1) {
-         #ifdef HAS_SERIAL_COMM
-            SERIAL.print(sensors[i].label);
-            SERIAL.println(F(": Wrong sensor ALARM SET POINT definition. Check your Configuration.h file. Sensor disabled."));
-         #endif
-         sensors[i].alarmSP = 0;
-         sensors[i].forceDisable = true;
-      }
-      if (sensors[i].type == NTCSensor && ((sensors[i].alarmSP < 0) || (sensors[i].alarmSP > highest_temp(i)))) {
-         #ifdef HAS_SERIAL_COMM
-            SERIAL.print(sensors[i].label);
-            SERIAL.println(F(": Wrong sensor ALARM SET POINT definition (above or bellow selected temperature calibration table). Check your Configuration.h file. Sensor disabled."));
-         #endif
-         sensors[i].alarmSP = 0;
-         sensors[i].forceDisable = true;
-      }       
-   }
-
-}*/
-//***************************************************************************************

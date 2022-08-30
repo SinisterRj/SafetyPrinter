@@ -1,6 +1,6 @@
 //*************************   Serial communication module  *************************
 /*
- * Copyright (c) 2021 Rodrigo C. C. Silva [https://github.com/SinisterRj/SafetyPrinter]
+ * Copyright (c) 2021~22 Rodrigo C. C. Silva [https://github.com/SinisterRj/SafetyPrinter]
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -125,6 +125,8 @@ void recvCommandWithStartEndMarkers() {
       Cmd_c7(argument1,argument2);
     } else if ((String(command).equalsIgnoreCase("c8")) || (String(command).equalsIgnoreCase("standard"))) {
       Cmd_c8(argument1);      
+    } else if ((String(command).equalsIgnoreCase("c9")) || (String(command).equalsIgnoreCase("flash"))) {
+      Cmd_c9(argument1);   
     } else if (String(command).equalsIgnoreCase("r1")) {
       Cmd_r1();
     } else if (String(command).equalsIgnoreCase("r2")) {
@@ -447,6 +449,28 @@ void Cmd_c8(char argument1[ARGUMENTSIZE])
    #endif
 }
 
+void Cmd_c9(char argument1[ARGUMENTSIZE])
+{
+    // Resets Arduino
+    #ifdef ARDUINO_RESET_PIN
+      unsigned long i = atoi(argument1);
+      SERIAL.print(F(": Resseting in bootloader mode in "));
+      SERIAL.print(i);
+      SERIAL.println(F(" miliseconds."));
+      
+      #ifdef DEBUG
+          SERIAL.print (F("Cmd_c5: Free memory [bytes]= "));  // 2048 bytes from datasheet
+          SERIAL.println (freeMemory());
+      #endif  
+      SERIAL.flush();
+      delay(i+50);
+      digitalWrite(ARDUINO_RESET_PIN, LOW);
+    #else
+      SERIAL.print(F(": ERROR: ARDUINO_RESET_PIN not defined in configuration.h."));
+    #endif
+    
+}
+
 void Cmd_r1() //530
 {
    // Serial command to Return Input Status for Octoprint plugin
@@ -628,6 +652,13 @@ void Cmd_r4()
    response += bfr;
    response += SEP_CHAR;
 
+   #if defined(__AVR_ATmega328P__) || defined(__AVR_ATmega168__) //Arduino NANO and UNO
+     response += '1';
+   #elif defined(__AVR_ATmega32U4__) || defined(__AVR_ATmega16U4__) //Arduino Leonardo and Micro
+     response += '2';
+   #endif
+   response += SEP_CHAR;
+   
    send(response.c_str());  //Sends response with CRC
    #ifdef DEBUG
       SERIAL.print (F("Cmd_r4: Free memory [bytes]= "));  // 2048 bytes from datasheet
@@ -691,6 +722,7 @@ void Cmd_r7() {
 
 void Cmd_d1(char argument1[ARGUMENTSIZE]) 
 {
+   // Raises warnings for debug
    int i = atoi(argument1);
 
    if (i == 1) {
@@ -721,21 +753,7 @@ uint16_t calcCRC(const char* str)
   }
   return crc;
 }
-/*
-uint16_t _crc16_update(uint16_t crc, uint8_t a)
-{
-  int i;
-  crc ^= a;
-  for (i = 0; i < 8; ++i)
-  {
-    if (crc & 1)
-    crc = (crc >> 1) ^ 0xA001;
-    else
-    crc = (crc >> 1);
-  }
-  return crc;
-}
-*/
+
 void send(const char* payload) {
    SERIAL.print(":" CRC_CHAR); 
    SERIAL.print(calcCRC(payload));
