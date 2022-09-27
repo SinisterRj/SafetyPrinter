@@ -1,7 +1,7 @@
 # SafetyPrinter
 This project aims to improve the safety of 3D FDM Printers by adding an external MCU (an Arduino) which increases your chance of preventing or mitigating a fire at your home.
 
-<img src="https://user-images.githubusercontent.com/81830673/121432010-88864680-c950-11eb-83a0-9adb8b8b4f0b.jpg" alt="Complete electronics assembly" width="400">\
+<img src="https://user-images.githubusercontent.com/81830673/192379819-4499de46-5cef-4512-95a7-99c88f07586f.jpg" alt="Complete electronics assembly" width="400">\
 _Safety Printer MCU assembly_
 
 The project itself is very simple and designed to be cheap (the minimum needed is an Arduino nano and a few sensors). All you need is some time to assemble everything and test.

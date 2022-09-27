@@ -60,7 +60,7 @@ void readEEPROMData() {
             if ((sensors[i].alarmSP < sensors[i].lowSP) || (sensors[i].alarmSP > sensors[i].highSP)) {
                // Wrong value. Change back to standard:           
                #ifdef HAS_SERIAL_COMM
-               SERIAL.println("Invalid EEPROM set point read (" + String(sensors[i].alarmSP) +"). Defining standard set point to " + sensors[i].label + " (" + String(defaultSensors[i].alarmSP) + ").");
+               Serial.println("Invalid EEPROM set point read (" + String(sensors[i].alarmSP) +"). Defining standard set point to " + sensors[i].label + " (" + String(defaultSensors[i].alarmSP) + ").");
                #endif
                sensors[i].alarmSP = defaultSensors[i].alarmSP;
             }

@@ -87,12 +87,7 @@
 
 #define DIGIGTAL_SENSOR         0           // Internal use, don't change
 #define NTC_SENSOR              1           // Internal use, don't change
-
-// Board Codes
-#define UNO                     1
-#define NANO                    2
-#define LEONARDO                3
-
+ 
 #include <Arduino.h>                        // Needed to compile with Platformio
 #include <avr/wdt.h>                        // Watchdog
 #include <EEPROM.h>                         // EEPROM access
@@ -326,7 +321,8 @@ void setup() {
    digitalWrite(ARDUINO_RESET_PIN, HIGH);
    
    #ifdef HAS_SERIAL_COMM
-      SERIAL.begin(BAUD_RATE);
+      Serial.begin(BAUD_RATE);
+      Serial.println(F("booting..."));    
    #endif
 
    #ifdef HAS_LCD
@@ -412,17 +408,17 @@ void loop() {
    //Debug Info
    #ifdef DEBUG
       if (checkTimer(&debugTimer.startMs,DEBUG_DELAY,&debugTimer.started)) { 
-         SERIAL.println();
-         SERIAL.print (F("Free memory [bytes]= "));  // 2048 bytes from datasheet
-         SERIAL.println (freeMemory());
-         SERIAL.print (F("Temperature [C]= "));
-         SERIAL.println (readTemp(), 2);
-         SERIAL.print (F("Voltage [V]= "));
-         SERIAL.println (readVcc(), 2);  // 2.7V to 5.5V from datasheet
-         SERIAL.print (F("Execution time max [us] = "));
-         SERIAL.println (lTLastMax,DEC); 
-         SERIAL.print (F("Execution time average [us] = "));
-         SERIAL.println (lTLastSum/LOOP_TIME_SAMPLES, DEC); 
+         Serial.println();
+         Serial.print (F("Free memory [bytes]= "));  // 2048 bytes from datasheet
+         Serial.println (freeMemory());
+         Serial.print (F("Temperature [C]= "));
+         Serial.println (readTemp(), 2);
+         Serial.print (F("Voltage [V]= "));
+         Serial.println (readVcc(), 2);  // 2.7V to 5.5V from datasheet
+         Serial.print (F("Execution time max [us] = "));
+         Serial.println (lTLastMax,DEC); 
+         Serial.print (F("Execution time average [us] = "));
+         Serial.println (lTLastSum/LOOP_TIME_SAMPLES, DEC); 
       } else {
          startTimer(&debugTimer.startMs,&debugTimer.started);
       } 
@@ -544,8 +540,8 @@ void validateSensorsInfo() {
                   sensors[x].enabled = false;
                   sensors[x].forceDisable = true;
                   #ifdef HAS_SERIAL_COMM
-                     SERIAL.print(sensors[x].label);
-                     SERIAL.println(F(": Multiple assings to the same I/O pin. Check your Configuration.h file. Sensor disabled."));
+                     Serial.print(sensors[x].label);
+                     Serial.println(F(": Multiple assings to the same I/O pin. Check your Configuration.h file. Sensor disabled."));
                   #endif
                }
             }
@@ -779,6 +775,7 @@ float readTemp() {
   // Channel 8 can not be selected with
   // the analogRead function yet.
 
+
   // Set the internal reference and mux.
   ADMUX = (_BV(REFS1) | _BV(REFS0) | _BV(MUX3));
   ADCSRA |= _BV(ADEN);  // enable the ADC
@@ -807,7 +804,7 @@ float readVcc() {
    delay(2); // Wait for Vref to settle 
    ADCSRA |= _BV(ADSC); // Convert 
    while (bit_is_set(ADCSRA,ADSC)); 
-  
+   
    result = ADCL;
    result |= ADCH<<8; 
    result = 1126400L / result; // Back-calculate AVcc in mV 
