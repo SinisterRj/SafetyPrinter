@@ -17,7 +17,7 @@
  * 
  * WARNING: DON'T CHANGE ANYTHING IN THIS FILE! ALL CONFIGURATIONS SHOULD BE DONE IN "Configurations.h".
  * 
- * Version 0.2.6
+ * Version 0.2.6rc1
  * 30/08/22
  * Changes:
  * 1) New default pin out to match with the official Safety Printer Arduino Shield;

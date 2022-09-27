@@ -40,7 +40,7 @@
 
 #define HAS_NEOPIXEL                        // Use a neopixel led or strip to indicate the Safety Printer MCU status (OPTIONAL).
 #ifdef HAS_NEOPIXEL
-  #define NEOPIXEL_PIN          12          // Arduino's Digital pin connected to the neopixels strip data line.
+  #define NEOPIXEL_PIN          13          // Arduino's Digital pin connected to the neopixels strip data line.
   #define NEOPIXEL_COUNT        1           // Number of neopixels (LEDs) on the strip.
   #define NEOPIXEL_TYPE         NEO_GRB     // Neopixel color order: NEO_RGB, NEO_GRB or NEO_RGBW.
   #define NEOPIXEL_BRIGHTNESS   125         // Neopixel leds brightness. Any value from 0 to 255.
@@ -49,9 +49,9 @@
   #define TRIP_RGB              255,0,0     // Trip status neopixel color in [Red,Green,Blue,White].
   #define ALARM_BLINK           500         // Alarm color blink interval in [ms]       
 #else
-  //#define ALARM_LED_PIN           13        // Arduino's Digital pin connected to the alarm indication LED (OPTIONAL).
-  //#define TRIP_LED_PIN            12        // Arduino's Digital pin connected to the trip indication LED (OPTIONAL).
-  //#define LED_DELAY               5000      // Led heart beat interval in [ms]
+  #define ALARM_LED_PIN           13        // Arduino's Digital pin connected to the alarm indication LED (OPTIONAL).
+  #define TRIP_LED_PIN            12        // Arduino's Digital pin connected to the trip indication LED (OPTIONAL).
+  #define LED_DELAY               5000      // Led heart beat interval in [ms]
 #endif
 
 // ########################  Serial Communication  ########################
