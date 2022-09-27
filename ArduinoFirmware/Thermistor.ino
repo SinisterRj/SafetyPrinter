@@ -1,6 +1,6 @@
 //*************************        Thermistor module       *************************
 /*
- * Copyright (c) 2021 Rodrigo C. C. Silva [https://github.com/SinisterRj/SafetyPrinter]
+ * Copyright (c) 2021~22 Rodrigo C. C. Silva [https://github.com/SinisterRj/SafetyPrinter]
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -337,92 +337,185 @@ int read_temp(byte NTC_Pin, byte NTC_Power_Pin, byte sensorNumber)
 int highest_temp(byte sensorNumber) {
   word numTemps = 0;
   switch (sensorNumber) {
-      case 0:
-          numTemps = SENSOR_1_TEMPTABLE_LEN;
-          break;
-      case 1:
-          numTemps = SENSOR_2_TEMPTABLE_LEN;
-          break;
-      case 2:
-          numTemps = SENSOR_3_TEMPTABLE_LEN;
-          break;
-      case 3:
-          numTemps = SENSOR_4_TEMPTABLE_LEN;
-          break;
-      case 4:
-          numTemps = SENSOR_5_TEMPTABLE_LEN;
-          break;
-      case 5:
-          numTemps = SENSOR_6_TEMPTABLE_LEN;
-          break;
-      case 6:
-          numTemps = SENSOR_7_TEMPTABLE_LEN;
-          break;
-      case 7:
-          numTemps = SENSOR_8_TEMPTABLE_LEN;
-          break;
+    case 0:
+        numTemps = SENSOR_1_TEMPTABLE_LEN;
+        break;
+    case 1:
+        numTemps = SENSOR_2_TEMPTABLE_LEN;
+        break;
+    case 2:
+        numTemps = SENSOR_3_TEMPTABLE_LEN;
+        break;
+    case 3:
+        numTemps = SENSOR_4_TEMPTABLE_LEN;
+        break;
+    case 4:
+        numTemps = SENSOR_5_TEMPTABLE_LEN;
+        break;
+    case 5:
+        numTemps = SENSOR_6_TEMPTABLE_LEN;
+        break;
+    case 6:
+        numTemps = SENSOR_7_TEMPTABLE_LEN;
+        break;
+    case 7:
+        numTemps = SENSOR_8_TEMPTABLE_LEN;
+        break;
   }
   int maxTemp = 0;
   for (word i=0; i<numTemps; i++)
   {      
     switch (sensorNumber) {
-    case 0:
-      #ifdef SENSOR_1_TEMP_TYPE
-        if (PGM_RD_W(SENSOR_1_TEMPTABLE[i].celsius) > maxTemp) {
-            maxTemp = PGM_RD_W(SENSOR_1_TEMPTABLE[i].celsius);
-        }
-      #endif
-      break;         
-    case 1:
-      #ifdef SENSOR_2_TEMP_TYPE
-        if (PGM_RD_W(SENSOR_2_TEMPTABLE[i].celsius) > maxTemp) {
-            maxTemp = PGM_RD_W(SENSOR_2_TEMPTABLE[i].celsius);
-        }
-      #endif
-      break; 
-    case 2:
-      #ifdef SENSOR_3_TEMP_TYPE
-        if (PGM_RD_W(SENSOR_3_TEMPTABLE[i].celsius) > maxTemp) {
-            maxTemp = PGM_RD_W(SENSOR_3_TEMPTABLE[i].celsius);
-        }
-      #endif
-      break;
-    case 3:
-      #ifdef SENSOR_4_TEMP_TYPE
-        if (PGM_RD_W(SENSOR_4_TEMPTABLE[i].celsius) > maxTemp) {
-            maxTemp = PGM_RD_W(SENSOR_4_TEMPTABLE[i].celsius);
-        }
-      #endif
-      break;
-    case 4:
-      #ifdef SENSOR_5_TEMP_TYPE
-        if (PGM_RD_W(SENSOR_5_TEMPTABLE[i].celsius) > maxTemp) {
-            maxTemp = PGM_RD_W(SENSOR_5_TEMPTABLE[i].celsius);
-        }
-      #endif
-      break;
-    case 5:
-      #ifdef SENSOR_6_TEMP_TYPE
-        if (PGM_RD_W(SENSOR_6_TEMPTABLE[i].celsius) > maxTemp) {
-            maxTemp = PGM_RD_W(SENSOR_6_TEMPTABLE[i].celsius);
-        }
-      #endif
-      break;
-    case 6:
-      #ifdef SENSOR_7_TEMP_TYPE
-        if (PGM_RD_W(SENSOR_7_TEMPTABLE[i].celsius) > maxTemp) {
-            maxTemp = PGM_RD_W(SENSOR_7_TEMPTABLE[i].celsius);
-        }
-      #endif
-      break;
-    case 7:
-      #ifdef SENSOR_8_TEMP_TYPE
-        if (PGM_RD_W(SENSOR_8_TEMPTABLE[i].celsius) > maxTemp) {
-            maxTemp = PGM_RD_W(SENSOR_8_TEMPTABLE[i].celsius);
-        }
-      #endif
-      break; 
+      case 0:
+        #ifdef SENSOR_1_TEMP_TYPE
+          if (PGM_RD_W(SENSOR_1_TEMPTABLE[i].celsius) > maxTemp) {
+              maxTemp = PGM_RD_W(SENSOR_1_TEMPTABLE[i].celsius);
+          }
+        #endif
+        break;         
+      case 1:
+        #ifdef SENSOR_2_TEMP_TYPE
+          if (PGM_RD_W(SENSOR_2_TEMPTABLE[i].celsius) > maxTemp) {
+              maxTemp = PGM_RD_W(SENSOR_2_TEMPTABLE[i].celsius);
+          }
+        #endif
+        break; 
+      case 2:
+        #ifdef SENSOR_3_TEMP_TYPE
+          if (PGM_RD_W(SENSOR_3_TEMPTABLE[i].celsius) > maxTemp) {
+              maxTemp = PGM_RD_W(SENSOR_3_TEMPTABLE[i].celsius);
+          }
+        #endif
+        break;
+      case 3:
+        #ifdef SENSOR_4_TEMP_TYPE
+          if (PGM_RD_W(SENSOR_4_TEMPTABLE[i].celsius) > maxTemp) {
+              maxTemp = PGM_RD_W(SENSOR_4_TEMPTABLE[i].celsius);
+          }
+        #endif
+        break;
+      case 4:
+        #ifdef SENSOR_5_TEMP_TYPE
+          if (PGM_RD_W(SENSOR_5_TEMPTABLE[i].celsius) > maxTemp) {
+              maxTemp = PGM_RD_W(SENSOR_5_TEMPTABLE[i].celsius);
+          }
+        #endif
+        break;
+      case 5:
+        #ifdef SENSOR_6_TEMP_TYPE
+          if (PGM_RD_W(SENSOR_6_TEMPTABLE[i].celsius) > maxTemp) {
+              maxTemp = PGM_RD_W(SENSOR_6_TEMPTABLE[i].celsius);
+          }
+        #endif
+        break;
+      case 6:
+        #ifdef SENSOR_7_TEMP_TYPE
+          if (PGM_RD_W(SENSOR_7_TEMPTABLE[i].celsius) > maxTemp) {
+              maxTemp = PGM_RD_W(SENSOR_7_TEMPTABLE[i].celsius);
+          }
+        #endif
+        break;
+      case 7:
+        #ifdef SENSOR_8_TEMP_TYPE
+          if (PGM_RD_W(SENSOR_8_TEMPTABLE[i].celsius) > maxTemp) {
+              maxTemp = PGM_RD_W(SENSOR_8_TEMPTABLE[i].celsius);
+          }
+        #endif
+        break; 
     }            
   }
   return maxTemp;
+}
+
+int lowest_temp(byte sensorNumber) {
+  word numTemps = 0;
+  switch (sensorNumber) {
+    case 0:
+        numTemps = SENSOR_1_TEMPTABLE_LEN;
+        break;
+    case 1:
+        numTemps = SENSOR_2_TEMPTABLE_LEN;
+        break;
+    case 2:
+        numTemps = SENSOR_3_TEMPTABLE_LEN;
+        break;
+    case 3:
+        numTemps = SENSOR_4_TEMPTABLE_LEN;
+        break;
+    case 4:
+        numTemps = SENSOR_5_TEMPTABLE_LEN;
+        break;
+    case 5:
+        numTemps = SENSOR_6_TEMPTABLE_LEN;
+        break;
+    case 6:
+        numTemps = SENSOR_7_TEMPTABLE_LEN;
+        break;
+    case 7:
+        numTemps = SENSOR_8_TEMPTABLE_LEN;
+        break;
+  }
+  int minTemp = 10000;
+  for (word i=0; i<numTemps; i++)
+  {      
+    switch (sensorNumber) {
+      case 0:
+        #ifdef SENSOR_1_TEMP_TYPE
+          if (PGM_RD_W(SENSOR_1_TEMPTABLE[i].celsius) < minTemp) {
+              minTemp = PGM_RD_W(SENSOR_1_TEMPTABLE[i].celsius);
+          }
+        #endif
+        break;         
+      case 1:
+        #ifdef SENSOR_2_TEMP_TYPE
+          if (PGM_RD_W(SENSOR_2_TEMPTABLE[i].celsius) < minTemp) {
+              minTemp = PGM_RD_W(SENSOR_2_TEMPTABLE[i].celsius);
+          }
+        #endif
+        break; 
+      case 2:
+        #ifdef SENSOR_3_TEMP_TYPE
+          if (PGM_RD_W(SENSOR_3_TEMPTABLE[i].celsius) < minTemp) {
+              minTemp = PGM_RD_W(SENSOR_3_TEMPTABLE[i].celsius);
+          }
+        #endif
+        break;
+      case 3:
+        #ifdef SENSOR_4_TEMP_TYPE
+          if (PGM_RD_W(SENSOR_4_TEMPTABLE[i].celsius) < minTemp) {
+              minTemp = PGM_RD_W(SENSOR_4_TEMPTABLE[i].celsius);
+          }
+        #endif
+        break;
+      case 4:
+        #ifdef SENSOR_5_TEMP_TYPE
+          if (PGM_RD_W(SENSOR_5_TEMPTABLE[i].celsius) < minTemp) {
+              minTemp = PGM_RD_W(SENSOR_5_TEMPTABLE[i].celsius);
+          }
+        #endif
+        break;
+      case 5:
+        #ifdef SENSOR_6_TEMP_TYPE
+          if (PGM_RD_W(SENSOR_6_TEMPTABLE[i].celsius) < minTemp) {
+              minTemp = PGM_RD_W(SENSOR_6_TEMPTABLE[i].celsius);
+          }
+        #endif
+        break;
+      case 6:
+        #ifdef SENSOR_7_TEMP_TYPE
+          if (PGM_RD_W(SENSOR_7_TEMPTABLE[i].celsius) < minTemp) {
+              minTemp = PGM_RD_W(SENSOR_7_TEMPTABLE[i].celsius);
+          }
+        #endif
+        break;
+      case 7:
+        #ifdef SENSOR_8_TEMP_TYPE
+          if (PGM_RD_W(SENSOR_8_TEMPTABLE[i].celsius) < minTemp) {
+              minTemp = PGM_RD_W(SENSOR_8_TEMPTABLE[i].celsius);
+          }
+        #endif
+        break; 
+    }            
+  }
+  return minTemp;
 }

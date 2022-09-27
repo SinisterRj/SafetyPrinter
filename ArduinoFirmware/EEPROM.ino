@@ -1,6 +1,6 @@
 //*************************          EEPROM module         *************************
 /*
- * Copyright (c) 2021 Rodrigo C. C. Silva [https://github.com/SinisterRj/SafetyPrinter]
+ * Copyright (c) 2021~22 Rodrigo C. C. Silva [https://github.com/SinisterRj/SafetyPrinter]
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -75,9 +75,9 @@ void readEEPROMData() {
               if (firstLoop) {
                   firstLoop = false;
                   #ifdef HAS_SERIAL_COMM
-                  Serial.print(F("Waiting "));
-                  Serial.print(MINIMUM_INTERLOCK_DELAY);
-                  Serial.println(F("s to turn on printer."));
+                    SERIAL.print(F("Waiting "));
+                    SERIAL.print(MINIMUM_INTERLOCK_DELAY);
+                    SERIAL.println(F("s to turn on printer."));
                   #endif
               }
               delay(250);
@@ -87,7 +87,7 @@ void readEEPROMData() {
       } else {
          //Write EEPROM for the first time
          #ifdef HAS_SERIAL_COMM
-         Serial.println(F("Wrong EEPROM version. Overwriting EEPROM with standard values."));
+          SERIAL.println(F("Wrong EEPROM version. Overwriting EEPROM with standard values."));
          #endif
          writeEEPROMData();
      }
@@ -95,7 +95,7 @@ void readEEPROMData() {
    else {
          //EEPROM corrupted. Write standard values
          #ifdef HAS_SERIAL_COMM
-         Serial.println(F("EEPROM corrupted. Overwriting EEPROM with standard values."));
+          SERIAL.println(F("EEPROM corrupted. Overwriting EEPROM with standard values."));
          #endif
          writeEEPROMData();    
    }  
