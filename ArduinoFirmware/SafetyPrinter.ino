@@ -17,7 +17,7 @@
  * 
  * WARNING: DON'T CHANGE ANYTHING IN THIS FILE! ALL CONFIGURATIONS SHOULD BE DONE IN "Configurations.h".
  * 
- * Version 0.2.6rc1
+ * Version 0.2.6
  * 30/08/22
  * Changes:
  * 1) New default pin out to match with the official Safety Printer Arduino Shield;
@@ -107,7 +107,7 @@
 // *******************************************************************************************
 
 #define VERSION                 "0.2.6"
-#define RELEASEDATE             "Aug 30 2022"
+#define RELEASEDATE             "Sep 27 2022"
 #define EEPROMVERSION           3            // Incremental BYTE. Firmware overwrites the EEPROM with standard values if the number readed from EEPROM is different. change everytime that EEPROM structure is changed.
 #define COMMPROTOCOL            5            // Incremental BYTE. Octoprint plugin communication protocol version. 
 
