@@ -31,6 +31,7 @@
 
 #define RESET_BUTTON_PIN        11          // Arduino's Digital pin connected to the trip reset switch (OPTIONAL).
 #define RESET_DELAY             2500        // Delay for reseting the trip condition in [ms]. The user must press the reset button for this amount of time to reset a trip.
+#define RESET_INHIBIT_DELAY    20000        // Delay for inhibiting reset button to avoid an auto reset if it is shortcuted.
 
 // ########################  Auto-Reset  ########################
 
@@ -58,12 +59,12 @@
 
 #define HAS_SERIAL_COMM                     // Uncomment to Enable serial communications. Needed to interface with Octoprint plugin (OPTIONAL)
 #ifdef HAS_SERIAL_COMM
-  #define BAUD_RATE             115200       // :[2400, 9600, 19200, 38400, 57600, 115200]
+  #define BAUD_RATE             38400       // :[2400, 9600, 19200, 38400, 57600, 115200]
 #endif
 
 // ########################  LCD  ########################
 
-//#define HAS_LCD                             // Uncomment to Enable the use of a 2x16 I2C LCD. (OPTIONAL)    
+#define HAS_LCD                             // Uncomment to Enable the use of a 2x16 I2C LCD. (OPTIONAL)    
 #ifdef HAS_LCD
   #define LCD_DELAY             2000        // LCD refresh rate in ms
   #define LCD_ADDRESS           0x27        // LCD I2C address

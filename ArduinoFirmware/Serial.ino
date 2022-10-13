@@ -59,11 +59,11 @@ void recvCommandWithStartEndMarkers() {
   char argument4[ARGUMENTSIZE] = "";
   bool newData = false;
  
-  Serial.flush();
+  SERIAL.flush();
   
-  while (Serial.available() > 0 && newData == false) {
+  while (SERIAL.available() > 0 && newData == false) {
       delay(3);
-      rc = Serial.read();
+      rc = SERIAL.read();
       if (rc != -1) {
         if (recvInProgress == true ) {
             if (rc != ENDMARKER) {
@@ -108,7 +108,7 @@ void recvCommandWithStartEndMarkers() {
 
     //Identifyes each command
     //Add here if you need to add new commands: MAX 8 chars
-    Serial.print(command);
+    SERIAL.print(command);
     if (String(command).equalsIgnoreCase("c1") || String(command).equalsIgnoreCase("reset")) {
       Cmd_c1();
     } else if ((String(command).equalsIgnoreCase("c2")) || (String(command).equalsIgnoreCase("trip"))) {
@@ -137,6 +137,10 @@ void recvCommandWithStartEndMarkers() {
       Cmd_r4();
     } else if (String(command).equalsIgnoreCase("r5")) {
       Cmd_r5();
+    } else if (String(command).equalsIgnoreCase("r6")) {
+      Cmd_r6();
+    } else if ((String(command).equalsIgnoreCase("r7")) || (String(command).equalsIgnoreCase("ispowered"))) {
+      Cmd_r7();
     } else if (String(command).equalsIgnoreCase("d1")) {
       Cmd_d1(argument1);
     } else {
@@ -152,18 +156,18 @@ void ReturnError(int type, char text[ARGUMENTSIZE]){
       case 2:
       case 3:
       case 4:  
-         Serial.print(F(": Unknown argument "));
-         Serial.print(type);
-         Serial.print(F(":"));
-         Serial.println(text); 
+         SERIAL.print(F(": Unknown argument "));
+         SERIAL.print(type);
+         SERIAL.print(F(":"));
+         SERIAL.println(text); 
       break;
       default:
-          Serial.println(F(": Unknown command!"));
+          SERIAL.println(F(": Unknown command!"));
       break;
   }
   #ifdef DEBUG
-      Serial.print (F("ReturnError: Free memory [bytes]= "));  // 2048 bytes from datasheet
-      Serial.println (freeMemory());
+      SERIAL.print (F("ReturnError: Free memory [bytes]= "));  // 2048 bytes from datasheet
+      SERIAL.println (freeMemory());
   #endif
   #ifdef HAS_LCD
       includeExtraMsg(0,0,false);
@@ -176,35 +180,35 @@ void Cmd_c1()
    if (interlockStatus) {
       if (resetInterlock(false)) {
          if (printerPowered) {     
-            Serial.println(F(": Resseting interlocks."));      
+            SERIAL.println(F(": Resseting interlocks."));      
          } else {
-            Serial.println(F(": Resseting interlocks but printer is powered OFF by <C6> command."));      
+            SERIAL.println(F(": Resseting interlocks but printer is powered OFF by <C6> command."));      
          } 
          #ifdef HAS_LCD
             includeExtraMsg(0,1,false);
          #endif
       } else {
-         Serial.print(F(": Can't reset now. Wait "));
-         Serial.print(MINIMUM_INTERLOCK_DELAY);
-         Serial.println(F("s and try again."));  
+         SERIAL.print(F(": Can't reset now. Wait "));
+         SERIAL.print(MINIMUM_INTERLOCK_DELAY);
+         SERIAL.println(F("s and try again."));  
       }
    } else {
-      Serial.println(F(": No interlock to reset."));   
+      SERIAL.println(F(": No interlock to reset."));   
    }
    #ifdef DEBUG
-      Serial.print (F("Cmd_c1: Free memory [bytes]= "));  // 2048 bytes from datasheet
-      Serial.println (freeMemory());
+      SERIAL.print (F("Cmd_c1: Free memory [bytes]= "));  // 2048 bytes from datasheet
+      SERIAL.println (freeMemory());
    #endif
 }
 
 void Cmd_c2()
 {
    // Serial command to Trip
-   Serial.println(F(": External interlock received."));
+   SERIAL.println(F(": External interlock received."));
    interlock(false,0);
    #ifdef DEBUG
-      Serial.print (F("Cmd_c2: Free memory [bytes]= "));  // 2048 bytes from datasheet
-      Serial.println (freeMemory());
+      SERIAL.print (F("Cmd_c2: Free memory [bytes]= "));  // 2048 bytes from datasheet
+      SERIAL.println (freeMemory());
    #endif
 }
 
@@ -220,7 +224,7 @@ void Cmd_c3(char argument1[ARGUMENTSIZE], char argument2[ARGUMENTSIZE])
                sensors[i].enabled = false;
             }
          }   
-         Serial.println(F(": ALL sensors are ENABLED.")); 
+         SERIAL.println(F(": ALL sensors are ENABLED.")); 
          #ifdef HAS_LCD
              includeExtraMsg(255,2,true);
          #endif 
@@ -229,7 +233,7 @@ void Cmd_c3(char argument1[ARGUMENTSIZE], char argument2[ARGUMENTSIZE])
             sensors[i].enabled = false;
             sensors[i].active = false;
          } 
-         Serial.println(F(": ALL sensors are DISABLED.")); 
+         SERIAL.println(F(": ALL sensors are DISABLED.")); 
          #ifdef HAS_LCD
              includeExtraMsg(255,3,true);
          #endif  
@@ -238,17 +242,17 @@ void Cmd_c3(char argument1[ARGUMENTSIZE], char argument2[ARGUMENTSIZE])
       int i = atoi(argument1);
       if (i >= 0 and i < numOfSensors and String(argument1).length() > 0) {
          if (String(argument2).equalsIgnoreCase("on")) {
-            Serial.print(F(": "));
-            Serial.print(sensors[i].label);
+            SERIAL.print(F(": "));
+            SERIAL.print(sensors[i].label);
             if (!sensors[i].forceDisable) {
                sensors[i].enabled = true;
-               Serial.println(F(" is ENABLED."));
+               SERIAL.println(F(" is ENABLED."));
                   #ifdef HAS_LCD
                      includeExtraMsg(i,2,true);
                   #endif 
             } else {
                sensors[i].enabled = false;
-               Serial.println(F(" ERROR: cannot be enabled due to configuration problem.")); 
+               SERIAL.println(F(" ERROR: cannot be enabled due to configuration problem.")); 
                #ifdef HAS_LCD
                   includeExtraMsg(0,0,false);
                #endif
@@ -256,9 +260,9 @@ void Cmd_c3(char argument1[ARGUMENTSIZE], char argument2[ARGUMENTSIZE])
          } else if (String(argument2).equalsIgnoreCase("off")) {
             sensors[i].enabled = false;
             sensors[i].active = false;
-            Serial.print(F(": "));
-            Serial.print(sensors[i].label);
-            Serial.println(F(" is DISABLED."));
+            SERIAL.print(F(": "));
+            SERIAL.print(sensors[i].label);
+            SERIAL.println(F(" is DISABLED."));
             #ifdef HAS_LCD
                includeExtraMsg(i,3,true);
             #endif   
@@ -270,8 +274,8 @@ void Cmd_c3(char argument1[ARGUMENTSIZE], char argument2[ARGUMENTSIZE])
       }
    }
    #ifdef DEBUG
-      Serial.print (F("Cmd_c3: Free memory [bytes]= "));  // 2048 bytes from datasheet
-      Serial.println (freeMemory());
+      SERIAL.print (F("Cmd_c3: Free memory [bytes]= "));  // 2048 bytes from datasheet
+      SERIAL.println (freeMemory());
    #endif
 }
 
@@ -284,34 +288,34 @@ void Cmd_c4(char argument1[ARGUMENTSIZE], char argument2[ARGUMENTSIZE])
       int oldSP = sensors[i].alarmSP;
       if ((newSP < sensors[i].lowSP) || (newSP > sensors[i].highSP)) {
          // Wrong value.        
-         Serial.print(F(": Alarm set point for: "));
-         Serial.print(sensors[i].label);
-         Serial.print(F(" must be between or equal to: "));
-         Serial.print(sensors[i].lowSP);
-         Serial.print(F(" and "));
-         Serial.print(sensors[i].highSP);
+         SERIAL.print(F(": Alarm set point for: "));
+         SERIAL.print(sensors[i].label);
+         SERIAL.print(F(" must be between or equal to: "));
+         SERIAL.print(sensors[i].lowSP);
+         SERIAL.print(F(" and "));
+         SERIAL.print(sensors[i].highSP);
          #ifdef HAS_LCD
             includeExtraMsg(0,0,false);
          #endif
       } else {
          sensors[i].alarmSP = newSP;   
-         Serial.print(F(": Sensor: "));
-         Serial.print(sensors[i].label); 
-         Serial.print(F(" set point changed from: ")); 
-         Serial.print(oldSP); 
-         Serial.print(F(" to: ")); 
-         Serial.print(sensors[i].alarmSP);
+         SERIAL.print(F(": Sensor: "));
+         SERIAL.print(sensors[i].label); 
+         SERIAL.print(F(" set point changed from: ")); 
+         SERIAL.print(oldSP); 
+         SERIAL.print(F(" to: ")); 
+         SERIAL.print(sensors[i].alarmSP);
          #ifdef HAS_LCD
              includeExtraMsg(i,4,true);
          #endif 
       }   
-      Serial.println(F("."));     
+      SERIAL.println(F("."));     
    } else {
       ReturnError(1,argument1);
    }
    #ifdef DEBUG
-      Serial.print (F("Cmd_c4: Free memory [bytes]= "));  // 2048 bytes from datasheet
-      Serial.println (freeMemory());
+      SERIAL.print (F("Cmd_c4: Free memory [bytes]= "));  // 2048 bytes from datasheet
+      SERIAL.println (freeMemory());
    #endif
 }
 
@@ -320,17 +324,17 @@ void Cmd_c5()
    // Update EEPROM sensors status
    byte bytesSaved = 0;
    bytesSaved = writeEEPROMData();
-   Serial.print(F(": EEPROM updated. "));
-   Serial.print(bytesSaved);
-   Serial.print(F(" bytes saved. "));
-   Serial.print(EEPROM.length() - bytesSaved);
-   Serial.println(F(" bytes free."));
+   SERIAL.print(F(": EEPROM updated. "));
+   SERIAL.print(bytesSaved);
+   SERIAL.print(F(" bytes saved. "));
+   SERIAL.print(EEPROM.length() - bytesSaved);
+   SERIAL.println(F(" bytes free."));
    #ifdef HAS_LCD
       includeExtraMsg(0,5,false);
    #endif 
    #ifdef DEBUG
-      Serial.print (F("Cmd_c5: Free memory [bytes]= "));  // 2048 bytes from datasheet
-      Serial.println (freeMemory());
+      SERIAL.print (F("Cmd_c5: Free memory [bytes]= "));  // 2048 bytes from datasheet
+      SERIAL.println (freeMemory());
    #endif   
 }
 
@@ -340,36 +344,36 @@ void Cmd_c6(char argument1[ARGUMENTSIZE])
    if (String(argument1).equalsIgnoreCase("off")) {
       // Turns off printer
       if (turnOnOff(false)) {
-         Serial.println(F(": Printer turned OFF.")); 
+         SERIAL.println(F(": Printer turned OFF.")); 
          #ifdef HAS_LCD
             includeExtraMsg(0,6,false);
          #endif 
       } else {
-         Serial.println(F(": Can't turn OFF printer.")); 
+         SERIAL.println(F(": Can't turn OFF printer.")); 
       }
    } else if (String(argument1).equalsIgnoreCase("on")) {
       // Turns on printer
 
       if (!interlockStatus) {
          if (turnOnOff(true)) {
-            Serial.println(F(": Printer turned ON.")); 
+            SERIAL.println(F(": Printer turned ON.")); 
             #ifdef HAS_LCD
                includeExtraMsg(0,7,false);
             #endif  
          } else {
-            Serial.print(F(": Can't turn printer ON now. Wait "));
-            Serial.print(MINIMUM_INTERLOCK_DELAY);
-            Serial.println(F("s and try again."));
+            SERIAL.print(F(": Can't turn printer ON now. Wait "));
+            SERIAL.print(MINIMUM_INTERLOCK_DELAY);
+            SERIAL.println(F("s and try again."));
          }
       } else {
-         Serial.println(F(": Can't turn printer ON with INTERLOCK status ON."));
+         SERIAL.println(F(": Can't turn printer ON with INTERLOCK status ON."));
       }
    } else {
       ReturnError(1,argument1);
    }
    #ifdef DEBUG
-      Serial.print (F("Cmd_c6: Free memory [bytes]= "));  // 2048 bytes from datasheet
-      Serial.println (freeMemory());
+      SERIAL.print (F("Cmd_c6: Free memory [bytes]= "));  // 2048 bytes from datasheet
+      SERIAL.println (freeMemory());
    #endif
 }
 
@@ -382,21 +386,21 @@ void Cmd_c7(char argument1[ARGUMENTSIZE], char argument2[ARGUMENTSIZE])
       unsigned long oldTimer = sensors[i].timer;
       if ((newTimer < 0) || (newTimer > 4294967295)) {
          // Wrong value.        
-         Serial.print(F(": Timer for: "));
-         Serial.print(sensors[i].label);
-         Serial.println(F(" must be between or equal to: 0 and 4,294,967,295.")); 
+         SERIAL.print(F(": Timer for: "));
+         SERIAL.print(sensors[i].label);
+         SERIAL.println(F(" must be between or equal to: 0 and 4,294,967,295.")); 
          #ifdef HAS_LCD
             includeExtraMsg(0,0,false);
          #endif
       } else {
          sensors[i].timer = newTimer;   
-         Serial.print(F(": Sensor: "));
-         Serial.print(sensors[i].label); 
-         Serial.print(F(" timer changed from: "));
-         Serial.print(oldTimer);
-         Serial.print(F("ms to: "));
-         Serial.print(sensors[i].timer);
-         Serial.println(F("ms."));
+         SERIAL.print(F(": Sensor: "));
+         SERIAL.print(sensors[i].label); 
+         SERIAL.print(F(" timer changed from: "));
+         SERIAL.print(oldTimer);
+         SERIAL.print(F("ms to: "));
+         SERIAL.print(sensors[i].timer);
+         SERIAL.println(F("ms."));
          #ifdef HAS_LCD
             includeExtraMsg(i,8,true);
          #endif  
@@ -405,8 +409,8 @@ void Cmd_c7(char argument1[ARGUMENTSIZE], char argument2[ARGUMENTSIZE])
       ReturnError(1,argument1);
    }
    #ifdef DEBUG
-      Serial.print (F("Cmd_c7: Free memory [bytes]= "));  // 2048 bytes from datasheet
-      Serial.println (freeMemory());
+      SERIAL.print (F("Cmd_c7: Free memory [bytes]= "));  // 2048 bytes from datasheet
+      SERIAL.println (freeMemory());
    #endif
 }
 
@@ -419,7 +423,7 @@ void Cmd_c8(char argument1[ARGUMENTSIZE])
          sensors[i].alarmSP = defaultSensors[i].alarmSP;
          sensors[i].timer = defaultSensors[i].timer;
       }   
-      Serial.println(F(": ALL sensors configurations returned to standard values."));
+      SERIAL.println(F(": ALL sensors configurations returned to standard values."));
       #ifdef HAS_LCD
          includeExtraMsg(255,9,true);
       #endif  
@@ -429,9 +433,9 @@ void Cmd_c8(char argument1[ARGUMENTSIZE])
          sensors[i].enabled = defaultSensors[i].enabled;
          sensors[i].alarmSP = defaultSensors[i].alarmSP;
          sensors[i].timer = defaultSensors[i].timer;
-         Serial.print(F(": Sensor: "));
-         Serial.print(sensors[i].label);
-         Serial.println(F(" configurations returned to standard values.")); 
+         SERIAL.print(F(": Sensor: "));
+         SERIAL.print(sensors[i].label);
+         SERIAL.println(F(" configurations returned to standard values.")); 
          #ifdef HAS_LCD
             includeExtraMsg(i,9,true);
          #endif  
@@ -440,8 +444,8 @@ void Cmd_c8(char argument1[ARGUMENTSIZE])
      }
    }
    #ifdef DEBUG
-      Serial.print (F("Cmd_c8: Free memory [bytes]= "));  // 2048 bytes from datasheet
-      Serial.println (freeMemory());
+      SERIAL.print (F("Cmd_c8: Free memory [bytes]= "));  // 2048 bytes from datasheet
+      SERIAL.println (freeMemory());
    #endif
 }
 
@@ -469,67 +473,71 @@ void Cmd_c9(char argument1[ARGUMENTSIZE])
 
 void Cmd_r1() //530
 {
-   // Serial command to Return Input Status for Octoprint plugin
-   char bfr[20] = "";
+  // Serial command to Return Input Status for Octoprint plugin
+  char bfr[20] = "";
 
-   String response = BoolToString(interlockStatus);
-   response += SEP_CHAR;
-   
-   // board status
-   response += BoolToString(memWrng);
-   response += SEP_CHAR;
-   memWrng = false;
+  String response = BoolToString(interlockStatus);
+  response += SEP_CHAR;
 
-   response += BoolToString(execWrng);
-   response += SEP_CHAR;
-   execWrng = false;
+  // Reset inhibit status - included in 0.2.7
+  response += BoolToString(inhibitReset);
+  response += SEP_CHAR;
+  
+  // board status
+  response += BoolToString(memWrng);
+  response += SEP_CHAR;
+  memWrng = false;
 
-   response += BoolToString(tempWrng);
-   response += SEP_CHAR;
-   tempWrng = false;
+  response += BoolToString(execWrng);
+  response += SEP_CHAR;
+  execWrng = false;
 
-   response += BoolToString(voltWrng);
-   response += SEP_CHAR;
-   voltWrng = false;
+  response += BoolToString(tempWrng);
+  response += SEP_CHAR;
+  tempWrng = false;
 
-   for (int i =0; i < numOfSensors; i++) { 
-      response += SENSOR_CHAR;
+  response += BoolToString(voltWrng);
+  response += SEP_CHAR;
+  voltWrng = false;
 
-      memset(bfr, 0, sizeof bfr);
-      itoa(i,bfr,10);
-      response += bfr;
-      response += SEP_CHAR;
+  for (int i =0; i < numOfSensors; i++) { 
+    response += SENSOR_CHAR;
 
-      response += BoolToString(sensors[i].enabled);
-      response += SEP_CHAR;
+    memset(bfr, 0, sizeof bfr);
+    itoa(i,bfr,10);
+    response += bfr;
+    response += SEP_CHAR;
 
-      response += BoolToString(sensors[i].active);
-      response += SEP_CHAR;
+    response += BoolToString(sensors[i].enabled);
+    response += SEP_CHAR;
 
-      memset(bfr, 0, sizeof bfr);
-      itoa(sensors[i].actualValue,bfr,10);
-      response += bfr;
-      response += SEP_CHAR;
+    response += BoolToString(sensors[i].active);
+    response += SEP_CHAR;
 
-      memset(bfr, 0, sizeof bfr);
-      itoa(sensors[i].alarmSP,bfr,10);
-      response += bfr;
-      response += SEP_CHAR;
-      
-      memset(bfr, 0, sizeof bfr);
-      itoa(sensors[i].timer,bfr,10);
-      response += bfr;
-      response += SEP_CHAR;
+    memset(bfr, 0, sizeof bfr);
+    itoa(sensors[i].actualValue,bfr,10);
+    response += bfr;
+    response += SEP_CHAR;
 
-      response += BoolToString(sensors[i].trigger);
-      response += SEP_CHAR;
+    memset(bfr, 0, sizeof bfr);
+    itoa(sensors[i].alarmSP,bfr,10);
+    response += bfr;
+    response += SEP_CHAR;
+    
+    memset(bfr, 0, sizeof bfr);
+    itoa(sensors[i].timer,bfr,10);
+    response += bfr;
+    response += SEP_CHAR;
 
-   }   
-   send(response.c_str());
-   #ifdef DEBUG
-      Serial.print (F("Cmd_r1: Free memory [bytes]= "));  // 2048 bytes from datasheet
-      Serial.println (freeMemory());
-   #endif 
+    response += BoolToString(sensors[i].trigger);
+    response += SEP_CHAR;
+
+  }   
+  send(response.c_str());  //Sends response with CRC
+  #ifdef DEBUG
+    SERIAL.print (F("Cmd_r1: Free memory [bytes]= "));  // 2048 bytes from datasheet
+    SERIAL.println (freeMemory());
+  #endif 
 }
 
 void Cmd_r2()
@@ -564,73 +572,74 @@ void Cmd_r2()
       response += bfr;
       response += SEP_CHAR;
    }
-   send(response.c_str()); 
+   send(response.c_str());  //Sends response with CRC
    #ifdef DEBUG
-      Serial.print (F("Cmd_r2: Free memory [bytes]= "));  // 2048 bytes from datasheet
-      Serial.println (freeMemory());
+      SERIAL.print (F("Cmd_r2: Free memory [bytes]= "));  // 2048 bytes from datasheet
+      SERIAL.println (freeMemory());
    #endif  
 }
 
 void Cmd_r3()
 {
-   // Serial command to Return Input Status more suitable for humans.
-   Serial.println(F(": Safety Printer Status"));
-   Serial.println(F("------------------------------------------------------------------------"));
-   Serial.print(F("** Interlock Status ** :"));
-   if (interlockStatus) Serial.println(F(" ********  Shudown (TRIP) ********")); 
-   else Serial.println(F(" Normal Operation")); 
-   Serial.println(F("------------------------------------------------------------------------"));
-   Serial.println(F("#:| Label             | Enab.| Act.| Trig.| Value | S.Point | Timer     |"));
-   for (int i = 0; i < numOfSensors; i++) { 
-      Serial.print(String(i) + ".|." + sensors[i].label);
-      int dots = 18 - strlen(sensors[i].label); //.length();
-      for (int j = 0; j< dots ;j++)
-      {
-         Serial.print(F("."));
-      }
-      Serial.print(F("|."));
-      if (sensors[i].enabled) {
-         Serial.print(F("Yes"));
-      } else {
-         Serial.print(F("No."));
-      }
-      Serial.print(F("..|."));
-      if (sensors[i].active) {
-         Serial.print(F("Yes"));
-      } else {
-         Serial.print(F("No."));
-      }
-      Serial.print(F(".|."));
-      if (sensors[i].trigger) {
-         Serial.print(F("Yes."));
-      } else {
-         Serial.print(F("No.."));
-      }
-      Serial.print(".|." + String(sensors[i].actualValue));
-      dots = 6-String(sensors[i].actualValue).length();
-      for (int j = 0; j< dots;j++)
-      {
-         Serial.print(F("."));
-      }
-      Serial.print("|." + String(sensors[i].alarmSP));
-      dots = 8-String(sensors[i].alarmSP).length();
-      for (int j = 0; j< dots;j++)
-      {
-         Serial.print(F("."));
-      }
-      Serial.print("|." + String(sensors[i].timer));
-      dots = 10-String(sensors[i].timer).length();
-      for (int j = 0; j< dots;j++)
-      {
-         Serial.print(F("."));
-      }
-      Serial.println(F("|"));
-   }
-   Serial.println(F("------------------------------------------------------------------------"));
-   #ifdef DEBUG
-      Serial.print (F("Cmd_r3: Free memory [bytes]= "));  // 2048 bytes from datasheet
-      Serial.println (freeMemory());
-   #endif
+  // Serial command to Return Input Status more suitable for humans.
+  SERIAL.println(F(": Safety Printer Status"));
+  SERIAL.println(F("------------------------------------------------------------------------"));
+  SERIAL.print(F("** Interlock Status ** :"));
+  if (interlockStatus) SERIAL.println(F(" ********  Shutdown (TRIP) ********")); 
+  else SERIAL.println(F(" Normal Operation")); 
+  if (inhibitReset) SERIAL.println(F("WARNING: Reset button disabled due to continous operation."));    
+  SERIAL.println(F("------------------------------------------------------------------------"));
+  SERIAL.println(F("#:| Label ........... | Enab.| Act.| Trig.| Value | S.Point | Timer ... |"));
+  for (int i = 0; i < numOfSensors; i++) { 
+    SERIAL.print(String(i) + ".|." + sensors[i].label);
+    int dots = 18 - strlen(sensors[i].label); //.length();
+    for (int j = 0; j< dots ;j++)
+    {
+        SERIAL.print(F("."));
+    }
+    SERIAL.print(F("|."));
+    if (sensors[i].enabled) {
+        SERIAL.print(F("Yes"));
+    } else {
+        SERIAL.print(F("No."));
+    }
+    SERIAL.print(F("..|."));
+    if (sensors[i].active) {
+        SERIAL.print(F("Yes"));
+    } else {
+        SERIAL.print(F("No."));
+    }
+    SERIAL.print(F(".|."));
+    if (sensors[i].trigger) {
+        SERIAL.print(F("Yes."));
+    } else {
+        SERIAL.print(F("No.."));
+    }
+    SERIAL.print(".|." + String(sensors[i].actualValue));
+    dots = 6-String(sensors[i].actualValue).length();
+    for (int j = 0; j< dots;j++)
+    {
+        SERIAL.print(F("."));
+    }
+    SERIAL.print("|." + String(sensors[i].alarmSP));
+    dots = 8-String(sensors[i].alarmSP).length();
+    for (int j = 0; j< dots;j++)
+    {
+        SERIAL.print(F("."));
+    }
+    SERIAL.print("|." + String(sensors[i].timer));
+    dots = 10-String(sensors[i].timer).length();
+    for (int j = 0; j< dots;j++)
+    {
+        SERIAL.print(F("."));
+    }
+    SERIAL.println(F("|"));
+  }
+  SERIAL.println(F("------------------------------------------------------------------------"));
+  #ifdef DEBUG
+    SERIAL.print (F("Cmd_r3: Free memory [bytes]= "));  // 2048 bytes from datasheet
+    SERIAL.println (freeMemory());
+  #endif
 }
 
 void Cmd_r4()
@@ -657,8 +666,8 @@ void Cmd_r4()
    
    send(response.c_str());  //Sends response with CRC
    #ifdef DEBUG
-      Serial.print (F("Cmd_r4: Free memory [bytes]= "));  // 2048 bytes from datasheet
-      Serial.println (freeMemory());
+      SERIAL.print (F("Cmd_r4: Free memory [bytes]= "));  // 2048 bytes from datasheet
+      SERIAL.println (freeMemory());
    #endif  
 }
 
@@ -694,9 +703,26 @@ void Cmd_r5()
 
    send(response.c_str());
    #ifdef DEBUG
-      Serial.print (F("Cmd_r5: Free memory [bytes]= "));  // 2048 bytes from datasheet
-      Serial.println (freeMemory());
-   #endif 
+      SERIAL.print (F("Cmd_r5: Free memory [bytes]= "));  // 2048 bytes from datasheet
+      SERIAL.println (freeMemory());
+   #endif
+}
+
+void Cmd_r6() 
+{
+   // Repeat intro serial message
+   SERIAL.println(F(": Safety Printer MCU ver." VERSION ", release date: " RELEASEDATE)); // Boot end msg. Octoprint Plug in looking for this msg in order to indicate that the arduino ir ready to receive commands.
+
+   #ifdef DEBUG
+      SERIAL.print (F("Cmd_c5: Free memory [bytes]= "));  // 2048 bytes from datasheet
+      SERIAL.println (freeMemory());
+   #endif  
+}
+
+void Cmd_r7() {
+  // Retuns printer status - Integration with PSU Control Plugin
+  SERIAL.print (F(": "));
+  SERIAL.println (BoolToString(printerPowered));
 }
 
 void Cmd_d1(char argument1[ARGUMENTSIZE]) 
@@ -716,10 +742,10 @@ void Cmd_d1(char argument1[ARGUMENTSIZE])
       ReturnError(1,argument1);
       return;
    }
-   Serial.println(": Debug command OK!");
+   SERIAL.println(": Debug command OK!");
    #ifdef DEBUG
-      Serial.print (F("Cmd_d1: Free memory [bytes]= "));  // 2048 bytes from datasheet
-      Serial.println (freeMemory());
+      SERIAL.print (F("Cmd_d1: Free memory [bytes]= "));  // 2048 bytes from datasheet
+      SERIAL.println (freeMemory());
    #endif
 }
  
@@ -734,10 +760,10 @@ uint16_t calcCRC(const char* str)
 }
 
 void send(const char* payload) {
-   Serial.print(":" CRC_CHAR); 
-   Serial.print(calcCRC(payload));
-   Serial.print(CRC_CHAR);
-   Serial.println(payload);
+   SERIAL.print(":" CRC_CHAR); 
+   SERIAL.print(calcCRC(payload));
+   SERIAL.print(CRC_CHAR);
+   SERIAL.println(payload);
 }
 
 

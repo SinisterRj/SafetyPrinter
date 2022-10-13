@@ -57,6 +57,7 @@ const char MSG_7[]  PROGMEM = "Printer ON";
 const char MSG_8[]  PROGMEM = "Timer changed";
 const char MSG_9[]  PROGMEM = "Standard values";
 const char MSG_10[] PROGMEM = "HOLD to reset";
+const char MSG_11[] PROGMEM = "Reset inhibited";
 
 typedef struct
 {
@@ -179,6 +180,9 @@ void updateLCD(bool forceShow) {
              break;
           case 10:
              strcpy_P(msg,MSG_10);
+             break;
+          case 11:
+             strcpy_P(msg,MSG_11);
              break;
         }
         lcd.setCursor(8-strlen(msg)/2,line);

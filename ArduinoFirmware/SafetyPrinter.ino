@@ -16,9 +16,14 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  * 
  * WARNING: DON'T CHANGE ANYTHING IN THIS FILE! ALL CONFIGURATIONS SHOULD BE DONE IN "Configurations.h".
+ *
+ * Version 0.2.7
+ * 13/10/22
+ * Changes:
+ * 1) Monitors RESET button to a continuous operation (shortcircuited) and disables it to avoid auto reset after a trip.
  * 
  * Version 0.2.6
- * 30/08/22
+ * 27/09/22
  * Changes:
  * 1) New default pin out to match with the official Safety Printer Arduino Shield;
  * 2) Include <R6> command to repeat intro msg;
@@ -87,7 +92,12 @@
 
 #define DIGIGTAL_SENSOR         0           // Internal use, don't change
 #define NTC_SENSOR              1           // Internal use, don't change
- 
+
+// Board Codes
+#define UNO                     1
+#define NANO                    2
+#define LEONARDO                3
+
 #include <Arduino.h>                        // Needed to compile with Platformio
 #include <avr/wdt.h>                        // Watchdog
 #include <EEPROM.h>                         // EEPROM access
@@ -101,10 +111,10 @@
 // *************************** Don't change after this line **********************************
 // *******************************************************************************************
 
-#define VERSION                 "0.2.6"
-#define RELEASEDATE             "Sep 27 2022"
+#define VERSION                 "0.2.7"
+#define RELEASEDATE             "Oct 13 2022"
 #define EEPROMVERSION           3            // Incremental BYTE. Firmware overwrites the EEPROM with standard values if the number readed from EEPROM is different. change everytime that EEPROM structure is changed.
-#define COMMPROTOCOL            5            // Incremental BYTE. Octoprint plugin communication protocol version. 
+#define COMMPROTOCOL            6            // Incremental BYTE. Octoprint plugin communication protocol version. 
 
 char forb_chars[] = {',','#','$',':','<','>'};   // forbiden characters for sensor names
 //int availableThermistors[] = {1,2,3,4,5,6,7,8,9,10,11,12,13,15,17,18,20,21,22,23,30,51,52,55,60,61,66,67,70,71,75,99,331,332,998,999};
@@ -286,7 +296,7 @@ bool interlockStatusChanged = false;
 bool anyAlarm = false;
 uint8_t activeAlarmCount = 0;
 uint8_t numOfSensors = 0;
-tTimer interlockTimer, resetTimer, minimumInterlockTimer;
+tTimer interlockTimer, resetTimer, minimumInterlockTimer, inhibitResetTimer;
 bool printerPowered = true;
 unsigned int lTLastRecord = 0;
 long lTStartTime;
@@ -296,6 +306,7 @@ long lTNow, lTLastMax, lTLastSum;
 bool memWrng, tempWrng, voltWrng, execWrng  = false;
 byte triggerIndex = 255;
 bool resetBtnPressed = false;
+bool inhibitReset = false;
 
 
 
@@ -321,8 +332,7 @@ void setup() {
    digitalWrite(ARDUINO_RESET_PIN, HIGH);
    
    #ifdef HAS_SERIAL_COMM
-      Serial.begin(BAUD_RATE);
-      Serial.println(F("booting..."));    
+      SERIAL.begin(BAUD_RATE);
    #endif
 
    #ifdef HAS_LCD
@@ -408,17 +418,17 @@ void loop() {
    //Debug Info
    #ifdef DEBUG
       if (checkTimer(&debugTimer.startMs,DEBUG_DELAY,&debugTimer.started)) { 
-         Serial.println();
-         Serial.print (F("Free memory [bytes]= "));  // 2048 bytes from datasheet
-         Serial.println (freeMemory());
-         Serial.print (F("Temperature [C]= "));
-         Serial.println (readTemp(), 2);
-         Serial.print (F("Voltage [V]= "));
-         Serial.println (readVcc(), 2);  // 2.7V to 5.5V from datasheet
-         Serial.print (F("Execution time max [us] = "));
-         Serial.println (lTLastMax,DEC); 
-         Serial.print (F("Execution time average [us] = "));
-         Serial.println (lTLastSum/LOOP_TIME_SAMPLES, DEC); 
+         SERIAL.println();
+         SERIAL.print (F("Free memory [bytes]= "));  // 2048 bytes from datasheet
+         SERIAL.println (freeMemory());
+         SERIAL.print (F("Temperature [C]= "));
+         SERIAL.println (readTemp(), 2);
+         SERIAL.print (F("Voltage [V]= "));
+         SERIAL.println (readVcc(), 2);  // 2.7V to 5.5V from datasheet
+         SERIAL.print (F("Execution time max [us] = "));
+         SERIAL.println (lTLastMax,DEC); 
+         SERIAL.print (F("Execution time average [us] = "));
+         SERIAL.println (lTLastSum/LOOP_TIME_SAMPLES, DEC); 
       } else {
          startTimer(&debugTimer.startMs,&debugTimer.started);
       } 
@@ -540,8 +550,8 @@ void validateSensorsInfo() {
                   sensors[x].enabled = false;
                   sensors[x].forceDisable = true;
                   #ifdef HAS_SERIAL_COMM
-                     Serial.print(sensors[x].label);
-                     Serial.println(F(": Multiple assings to the same I/O pin. Check your Configuration.h file. Sensor disabled."));
+                     SERIAL.print(sensors[x].label);
+                     SERIAL.println(F(": Multiple assings to the same I/O pin. Check your Configuration.h file. Sensor disabled."));
                   #endif
                }
             }
@@ -581,25 +591,36 @@ void checkSensors() {
 
 #ifdef RESET_BUTTON_PIN
 void checkResetButton() {
-   // Check if the reset button [RESET_BUTTON_PIN] is pressed, else reset the timer.
-   if (interlockStatus) {
-      if (!digitalRead(RESET_BUTTON_PIN)){
-         #ifdef HAS_LCD
-            if (!resetBtnPressed) {
-               resetBtnPressed = true;
-               includeExtraMsg(0,10,false);
-            }
-         #endif
-         if (resetInterlock(true)) {
-            #ifdef HAS_LCD
-               includeExtraMsg(0,1,false);
-            #endif      
-         } 
-      } else {
-        resetBtnPressed = false;
-        resetTimer.started = false;
-      } 
-   }
+  // Check if the reset button [RESET_BUTTON_PIN] is pressed, else reset the timer. Also verifies if the reset button is pressed for a long time and inhibit it if so to avoid an auto reset when it is shortcuted.
+  if (!digitalRead(RESET_BUTTON_PIN)){
+    if (checkTimer(&inhibitResetTimer.startMs,RESET_INHIBIT_DELAY,&inhibitResetTimer.started)) { 
+      inhibitReset = true;
+      #ifdef HAS_LCD
+        includeExtraMsg(0,11,false);     
+      #endif 
+    } else {
+      startTimer(&inhibitResetTimer.startMs,&inhibitResetTimer.started);
+    } 
+    if (interlockStatus && !inhibitReset) {      
+      #ifdef HAS_LCD
+        if (!resetBtnPressed) {
+          resetBtnPressed = true;
+          includeExtraMsg(0,10,false);
+        }
+      #endif
+      if (resetInterlock(true)) {
+        #ifdef HAS_LCD
+          includeExtraMsg(0,1,false);
+        #endif      
+      }
+    } 
+  } else {
+    resetBtnPressed = false;
+    resetTimer.started = false;
+    inhibitReset = false;
+    inhibitResetTimer.started = false;
+  } 
+  
 }
 #endif
 
@@ -775,7 +796,6 @@ float readTemp() {
   // Channel 8 can not be selected with
   // the analogRead function yet.
 
-
   // Set the internal reference and mux.
   ADMUX = (_BV(REFS1) | _BV(REFS0) | _BV(MUX3));
   ADCSRA |= _BV(ADEN);  // enable the ADC
@@ -804,7 +824,7 @@ float readVcc() {
    delay(2); // Wait for Vref to settle 
    ADCSRA |= _BV(ADSC); // Convert 
    while (bit_is_set(ADCSRA,ADSC)); 
-   
+  
    result = ADCL;
    result |= ADCH<<8; 
    result = 1126400L / result; // Back-calculate AVcc in mV 
