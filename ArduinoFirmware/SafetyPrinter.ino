@@ -18,9 +18,10 @@
  * WARNING: DON'T CHANGE ANYTHING IN THIS FILE! ALL CONFIGURATIONS SHOULD BE DONE IN "Configurations.h".
  *
  * Version 0.2.7
- * 13/10/22
+ * 22/10/22
  * Changes:
  * 1) Monitors RESET button to a continuous operation (shortcircuited) and disables it to avoid auto reset after a trip.
+ * 2) Fix a bug that crashes the serial communication if the sensor Label was grater then 16 chars.
  * 
  * Version 0.2.6
  * 27/09/22
@@ -98,6 +99,9 @@
 #define NANO                    2
 #define LEONARDO                3
 
+//Number of chars in sensors label
+#define NUMCHARLABEL            16
+
 #include <Arduino.h>                        // Needed to compile with Platformio
 #include <avr/wdt.h>                        // Watchdog
 #include <EEPROM.h>                         // EEPROM access
@@ -126,7 +130,7 @@ int lowest_temp(byte sensorNumber);
 typedef struct
 {
   int8_t index;
-  char label[17];
+  char label[NUMCHARLABEL+1];
   int8_t pin;
   int8_t auxPin;
   uint8_t type;
@@ -164,7 +168,7 @@ typedef struct
 tSensor sensors [] =
 {   
 #ifdef SENSOR_1_LABEL
-   0,SENSOR_1_LABEL,SENSOR_1_PIN,
+   0,"",SENSOR_1_PIN,
    #ifdef SENSOR_1_AUX_PIN 
       SENSOR_1_AUX_PIN, 
    #else 
@@ -178,7 +182,7 @@ tSensor sensors [] =
    #endif
 #endif 
 #ifdef SENSOR_2_LABEL
-   1,SENSOR_2_LABEL,SENSOR_2_PIN,
+   1,"",SENSOR_2_PIN,
    #ifdef SENSOR_2_AUX_PIN 
       SENSOR_2_AUX_PIN, 
    #else 
@@ -192,7 +196,7 @@ tSensor sensors [] =
    #endif
 #endif 
 #ifdef SENSOR_3_LABEL
-   2,SENSOR_3_LABEL,SENSOR_3_PIN,
+   2,"",SENSOR_3_PIN,
    #ifdef SENSOR_3_AUX_PIN 
       SENSOR_3_AUX_PIN, 
    #else 
@@ -206,7 +210,7 @@ tSensor sensors [] =
    #endif
 #endif 
 #ifdef SENSOR_4_LABEL
-   3,SENSOR_4_LABEL,SENSOR_4_PIN,
+   3,"",SENSOR_4_PIN,
    #ifdef SENSOR_4_AUX_PIN 
       SENSOR_4_AUX_PIN, 
    #else 
@@ -220,7 +224,7 @@ tSensor sensors [] =
    #endif
 #endif 
 #ifdef SENSOR_5_LABEL
-   4,SENSOR_5_LABEL,SENSOR_5_PIN,
+   4,"",SENSOR_5_PIN,
    #ifdef SENSOR_5_AUX_PIN 
       SENSOR_5_AUX_PIN, 
    #else 
@@ -234,7 +238,7 @@ tSensor sensors [] =
    #endif
 #endif 
 #ifdef SENSOR_6_LABEL
-   5,SENSOR_6_LABEL,SENSOR_6_PIN,
+   5,"",SENSOR_6_PIN,
    #ifdef SENSOR_6_AUX_PIN 
       SENSOR_6_AUX_PIN, 
    #else 
@@ -248,7 +252,7 @@ tSensor sensors [] =
    #endif
 #endif 
 #ifdef SENSOR_7_LABEL
-   6,SENSOR_7_LABEL,SENSOR_7_PIN,
+   6,"",SENSOR_7_PIN,
    #ifdef SENSOR_7_AUX_PIN 
       SENSOR_7_AUX_PIN, 
    #else 
@@ -262,7 +266,7 @@ tSensor sensors [] =
    #endif
 #endif 
 #ifdef SENSOR_8_LABEL
-   7,SENSOR_8_LABEL,SENSOR_8_PIN,
+   7,"",SENSOR_8_PIN,
    #ifdef SENSOR_8_AUX_PIN 
       SENSOR_8_AUX_PIN, 
    #else 
@@ -501,6 +505,32 @@ void validateSensorsInfo() {
    #ifdef LCD_SCL_PIN
       usedPins[arrayPos] = LCD_SCL_PIN;
       arrayPos++;
+   #endif
+
+   // Crops the sensor label if it is larger than NUMCHARLABEL
+   #ifdef SENSOR_1_LABEL
+   strncpy(sensors[0].label, SENSOR_1_LABEL, NUMCHARLABEL);
+   #endif
+   #ifdef SENSOR_2_LABEL
+   strncpy(sensors[1].label, SENSOR_2_LABEL, NUMCHARLABEL);
+   #endif
+   #ifdef SENSOR_3_LABEL
+   strncpy(sensors[2].label, SENSOR_3_LABEL, NUMCHARLABEL);
+   #endif
+   #ifdef SENSOR_4_LABEL
+   strncpy(sensors[3].label, SENSOR_4_LABEL, NUMCHARLABEL);
+   #endif
+   #ifdef SENSOR_5_LABEL
+   strncpy(sensors[4].label, SENSOR_5_LABEL, NUMCHARLABEL);
+   #endif
+   #ifdef SENSOR_6_LABEL
+   strncpy(sensors[5].label, SENSOR_6_LABEL, NUMCHARLABEL);
+   #endif
+   #ifdef SENSOR_7_LABEL
+   strncpy(sensors[6].label, SENSOR_7_LABEL, NUMCHARLABEL);
+   #endif
+   #ifdef SENSOR_8_LABEL
+   strncpy(sensors[7].label, SENSOR_8_LABEL, NUMCHARLABEL);
    #endif
    
    for (byte i = 0; i < numOfSensors; i++) {
