@@ -11,6 +11,3 @@ This project has a sibling project, the [Octoprint's Safety Printer plugin](http
 ![Sidebar1](https://user-images.githubusercontent.com/81830673/131403877-08929120-4f60-4287-9d52-c4439e3d3743.PNG)
 
 You can find lots of information on [Wiki](https://github.com/SinisterRj/SafetyPrinter/wiki) and we recommend it's reading.
-
-Se você é brasileiro 🇧🇷, junte-se a nós no Discord:
-https://discord.gg/3DyXfGwWJY
